@@ -56,8 +56,8 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 /* ===== LOGIN ===== */
 .login{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:24px}
 .login .card{width:100%;max-width:410px;border-radius:var(--r-lg);padding:34px 30px}
-.logo-badge{width:96px;height:96px;border-radius:26px;margin:0 auto 6px;display:grid;place-items:center;background:radial-gradient(120% 120% at 30% 20%,#12203c,#0a1020 70%);box-shadow:0 12px 34px -8px rgba(28,100,240,.6),inset 0 1px 0 rgba(255,255,255,.08)}
-.logo-badge img{width:62px;height:62px;object-fit:contain;filter:drop-shadow(0 3px 12px rgba(79,139,255,.7))}
+.logo-badge{margin:0 auto 8px;display:grid;place-items:center;background:none;box-shadow:none;border-radius:0}
+.logo-badge img{width:104px;height:104px;object-fit:contain;filter:drop-shadow(0 6px 22px rgba(79,139,255,.5))}
 @media (prefers-reduced-motion:no-preference){.breathe{animation:br 4.5s ease-in-out infinite}}
 @keyframes br{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:.9}}
 .login h1{text-align:center;font-size:26px;font-weight:800;margin-top:14px}
@@ -376,7 +376,7 @@ window.FLOWSHIFT_CONFIG = {
       h("div",{className:"grid"},
         h("div",{className:"panel glass"},
           h("div",{className:"ph"}, h("h3",null,"Ao vivo"), h("span",{className:"tag live"},"● Tempo real"), h("span",{className:"more",onClick:function(){props.go("ponto");}},"Ver ponto →")),
-          DATA.live.map(function(p,i){return h("div",{className:"person",key:i}, Av(p[0],i),
+          (st&&st.live&&st.live.length?st.live:DATA.live).map(function(p,i){return h("div",{className:"person",key:i}, Av(p[0],i),
             h("div",null, h("div",{className:"nm"},p[0]), h("div",{className:"rl"},p[1])),
             h("div",{className:"st "+p[2]}, h("span",{className:"d",style:{background:p[4]}}), p[3]));})
         ),
@@ -716,7 +716,7 @@ window.FLOWSHIFT_CONFIG = {
         Promise.all([
           sb.from("units").select("id,name"),
           sb.from("employees").select("id,full_name,role_title,contract_type,status"),
-          sb.from("time_entries").select("nsr,kind,ts").order("ts",{ascending:true}),
+          sb.from("time_entries").select("nsr,kind,ts,employee_id").order("ts",{ascending:true}),
           sb.from("hour_bank_ledger").select("employee_id,delta"),
           sb.from("masters").select("user_id")
         ]).then(function(res){
@@ -730,6 +730,8 @@ window.FLOWSHIFT_CONFIG = {
           var bancoTotal=Math.round(ledger.reduce(function(a,l){return a+Number(l.delta);},0));
           var ativos=emps.filter(function(e){return e.status==="ativo";}).length;
           var trabalhando=(function(){var ins={};ponto.forEach(function(p){if(p.kind==="in")ins[p.nsr]=1;});return Object.keys(ins).length;})();
+          var workSet={}; ponto.forEach(function(p){ if(p.kind==="in") workSet[p.employee_id]=1; if(p.kind==="out") delete workSet[p.employee_id]; });
+          var live=emps.slice(0,8).map(function(e){ var s=e.status==="ferias"?["s-off","Férias","var(--faint)"]:(e.status!=="ativo"?["s-off",cap(e.status),"var(--faint)"]:(workSet[e.id]?["s-work","Trabalhando","var(--good)"]:["s-miss","Sem ponto hoje","var(--bad)"])); return [e.full_name, e.role_title||"—", s[0], s[1], s[2]]; });
           var kpis=[
             ["Funcionários ativos",String(ativos),"","var(--good)","flat","de "+emps.length+" no total",Math.round(ativos/Math.max(1,emps.length)*100)],
             ["Pontos hoje",String(ponto.length),"","var(--info)","flat","marcações REP-P",Math.min(100,ponto.length*20)],
@@ -737,7 +739,7 @@ window.FLOWSHIFT_CONFIG = {
             ["Unidades",String(units.length),"","var(--violet)","flat","ativas",Math.min(100,units.length*20)],
             ["Escala","publicada","","var(--good)","flat","semana atual",100]
           ];
-          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
+          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
     },[user]);
