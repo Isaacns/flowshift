@@ -381,8 +381,8 @@ window.FLOWSHIFT_CONFIG = {
             h("div",{className:"st "+p[2]}, h("span",{className:"d",style:{background:p[4]}}), p[3]));})
         ),
         h("div",{className:"panel glass"},
-          h("div",{className:"ph"}, h("h3",null,"Pendências"), h("span",{className:"tag rules"},"3 itens")),
-          DATA.pend.map(function(p,i){return h(PendItem,{p:p,key:i});})
+          h("div",{className:"ph"}, h("h3",null,"Pendências"), h("span",{className:"tag rules"},((st&&st.pend?st.pend.length:3))+" itens")),
+          (st&&st.pend&&st.pend.length?st.pend:DATA.pend).map(function(p,i){return h(PendItem,{p:p,key:i});})
         )
       ),
       h("div",{className:"grid3"},
@@ -392,7 +392,7 @@ window.FLOWSHIFT_CONFIG = {
         ),
         h("div",{className:"panel glass"},
           h("div",{className:"ph"}, h("h3",null,"Escala do dia"), h("span",{className:"more",onClick:function(){props.go("esc");}},"Abrir →")),
-          DATA.shifts.map(function(sh,i){return h("div",{className:"shift",key:i}, h("span",{className:"tm"},sh[0]), h("div",null, h("div",{className:"w2"},sh[1]), h("div",{className:"r2"},sh[2])), h("span",{className:"cov "+sh[3]},sh[4]));})
+          (st&&st.shifts&&st.shifts.length?st.shifts:DATA.shifts).map(function(sh,i){return h("div",{className:"shift",key:i}, h("span",{className:"tm"},sh[0]), h("div",null, h("div",{className:"w2"},sh[1]), h("div",{className:"r2"},sh[2])), h("span",{className:"cov "+sh[3]},sh[4]));})
         ),
         h("div",{className:"panel glass"},
           h("div",{className:"ph"}, h("h3",null,"Banco de horas"), h("span",{className:"more"},"7 dias")),
@@ -718,7 +718,10 @@ window.FLOWSHIFT_CONFIG = {
           sb.from("employees").select("id,full_name,role_title,contract_type,status"),
           sb.from("time_entries").select("nsr,kind,ts,employee_id").order("ts",{ascending:true}),
           sb.from("hour_bank_ledger").select("employee_id,delta"),
-          sb.from("masters").select("user_id")
+          sb.from("masters").select("user_id"),
+          sb.from("assignments").select("employee_id,work_date,shift,hours").order("work_date",{ascending:false}).limit(12),
+          sb.from("swap_requests").select("status,requester_id,peer_id").order("created_at",{ascending:false}).limit(8),
+          sb.from("time_corrections").select("status,requested_by").order("created_at",{ascending:false}).limit(8)
         ]).then(function(res){
           var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name};});
           var emps=res[1].data||[];
@@ -732,6 +735,13 @@ window.FLOWSHIFT_CONFIG = {
           var trabalhando=(function(){var ins={};ponto.forEach(function(p){if(p.kind==="in")ins[p.nsr]=1;});return Object.keys(ins).length;})();
           var workSet={}; ponto.forEach(function(p){ if(p.kind==="in") workSet[p.employee_id]=1; if(p.kind==="out") delete workSet[p.employee_id]; });
           var live=emps.slice(0,8).map(function(e){ var s=e.status==="ferias"?["s-off","Férias","var(--faint)"]:(e.status!=="ativo"?["s-off",cap(e.status),"var(--faint)"]:(workSet[e.id]?["s-work","Trabalhando","var(--good)"]:["s-miss","Sem ponto hoje","var(--bad)"])); return [e.full_name, e.role_title||"—", s[0], s[1], s[2]]; });
+          var roleMap={}; emps.forEach(function(e){roleMap[e.id]=e.role_title||"—";});
+          var SL={M:"07:00–19:00",T:"13:00–22:00",N:"19:00–07:00",P:"Plantão"};
+          var assigns=(res[5]&&res[5].data)||[]; var maxd=assigns.length?assigns[0].work_date:null;
+          var shifts=assigns.filter(function(a){return a.work_date===maxd;}).slice(0,6).map(function(a){ return [SL[a.shift]||a.shift, a.employee_id?(nmeMap[a.employee_id]||"—"):"— vago —", a.employee_id?(roleMap[a.employee_id]||""):"", a.employee_id?"full":"gap", a.employee_id?"Coberto":"Vaga"]; });
+          var swaps=(res[6]&&res[6].data)||[]; var corrs=(res[7]&&res[7].data)||[]; var pend=[];
+          swaps.forEach(function(s){ pend.push(["swap","var(--info)","Troca de turno",(nmeMap[s.requester_id]||"—")+" ⇄ "+(nmeMap[s.peer_id]||"—"),"Aguardando aprovação do ADM",1]); });
+          corrs.forEach(function(c){ pend.push(["clock","var(--warn)","Correção de ponto",(nmeMap[c.requested_by]||"—")+" · solicitada","Aguardando aprovação",1]); });
           var kpis=[
             ["Funcionários ativos",String(ativos),"","var(--good)","flat","de "+emps.length+" no total",Math.round(ativos/Math.max(1,emps.length)*100)],
             ["Pontos hoje",String(ponto.length),"","var(--info)","flat","marcações REP-P",Math.min(100,ponto.length*20)],
@@ -739,7 +749,7 @@ window.FLOWSHIFT_CONFIG = {
             ["Unidades",String(units.length),"","var(--violet)","flat","ativas",Math.min(100,units.length*20)],
             ["Escala","publicada","","var(--good)","flat","semana atual",100]
           ];
-          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
+          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
     },[user]);
