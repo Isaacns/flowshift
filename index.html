@@ -99,6 +99,22 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--vizio),var(--violet));display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;box-shadow:var(--glow)}
 .side-foot .who b{font-size:12.5px} .side-foot .who span{font-size:10.5px;color:var(--faint)}
+.fs-usermenu{position:relative;width:100%}
+.fs-uchip{display:flex;align-items:center;gap:10px;width:100%;background:var(--chip);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;cursor:pointer;color:var(--text);transition:.15s}
+.fs-uchip:hover{background:rgba(130,165,240,.1)}
+.fs-uchip .who{display:flex;flex-direction:column;line-height:1.15;text-align:left;min-width:0;flex:1}
+.fs-uchip .who b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-uchip .who span{font-size:10.5px;color:var(--faint)}
+.fs-uchip .cx{font-size:9px;color:var(--muted)}
+.fs-uback{position:fixed;inset:0;z-index:40}
+.fs-upop{position:absolute;left:0;bottom:calc(100% + 8px);z-index:41;width:230px;border-radius:14px;padding:8px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.fs-umi{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;color:var(--text);font-size:13px;text-align:left;padding:10px;border-radius:10px;cursor:pointer;transition:.14s}
+.fs-umi svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;flex:none}
+.fs-umi:hover{background:rgba(130,165,240,.1)}
+.fs-umi.danger{color:#ff8f8f} .fs-umi.danger:hover{background:rgba(255,90,90,.12)}
+.fs-modal-bg{position:fixed;inset:0;z-index:60;background:rgba(2,6,14,.6);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px}
+.fs-modal{width:100%;max-width:420px;border-radius:18px;padding:22px}
+.fs-inp{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--text);font-size:14px;box-sizing:border-box}
 .tgl{margin-left:auto;background:var(--chip);border:1px solid var(--line);color:var(--muted);width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center}
 .tgl:hover{color:var(--primary-2)} .tgl svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
 .main{overflow-y:auto;padding:18px 22px 40px}
@@ -182,6 +198,18 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 20px;border-radius:14px;font-weight:700;font-size:13px;z-index:50;display:flex;gap:9px;align-items:center;opacity:0;transition:.3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast svg{width:17px;height:17px;stroke:var(--primary-2);fill:none;stroke-width:2.2}
+/* rodapé de usuário (card com avatar + ações) */
+.side-foot{flex-direction:column;align-items:stretch;gap:10px}
+.uprow{display:flex;align-items:center;gap:10px}
+.ubtns{display:flex;gap:6px}
+.ubtn{flex:1;height:34px;border-radius:10px;background:var(--chip);border:1px solid var(--line);color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.ubtn:hover{color:var(--primary-2);border-color:color-mix(in srgb,var(--primary-2) 40%,transparent)}
+.ubtn.danger:hover{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.ubtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
+/* botão voltar */
+.backbtn{display:inline-flex;align-items:center;gap:7px;margin-bottom:14px;padding:8px 14px;border-radius:12px;color:var(--text);font-family:var(--font);font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.backbtn:hover{color:var(--primary-2);transform:translateX(-2px)}
+.backbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid3{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{display:none}}
 
 </style>
@@ -248,7 +276,11 @@ window.FLOWSHIFT_CONFIG = {
     search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
     pin:'<path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
     swap:'<path d="M7 4l-4 4 4 4"/><path d="M3 8h13a4 4 0 0 1 0 8h-2"/><path d="M17 20l4-4-4-4"/>',
-    check:'<path d="M20 6L9 17l-5-5"/>'
+    check:'<path d="M20 6L9 17l-5-5"/>',
+    key:'<circle cx="7.5" cy="15.5" r="4"/><path d="M10.6 12.4 20 3M16.5 6.5l2.5 2.5M14 9l2.5 2.5"/>',
+    lock:'<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    logout:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/>',
+    back:'<path d="M15 19l-7-7 7-7"/>'
   };
   function Icon(n, cls) { return h("svg", { viewBox: "0 0 24 24", className: cls || "", dangerouslySetInnerHTML: { __html: ICONS[n] || "" } }); }
 
@@ -532,17 +564,67 @@ window.FLOWSHIFT_CONFIG = {
     );
   }
 
-  var VIEWS={dash:Dashboard,func:Funcionarios,esc:Escalas,ponto:Ponto,banco:Banco,rel:Relatorios,ia:IA,cfg:Config};
+  function Usuarios(props){
+    var st=useState([]),list=st[0],setList=st[1];
+    var ld=useState(true),loading=ld[0],setLoad=ld[1];
+    var nm=useState(""),nname=nm[0],setNname=nm[1];
+    var em=useState(""),nemail=em[0],setNemail=em[1];
+    var pw=useState(""),npass=pw[0],setNpass=pw[1];
+    var rl=useState("admin"),nrole=rl[0],setNrole=rl[1];
+    function load(){
+      if(DEMO||!sb){ setLoad(false); setList([{name:"Isaac Nogueira",email:"isaac@flowshift.local",role:"master"},{name:"Santiago",email:"santiago@flowshift.local",role:"admin"}]); return; }
+      setLoad(true);
+      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"list"}}).then(function(r){ setLoad(false); var d=(r&&r.data)||{}; if(d.ok) setList(d.users||[]); else toast(d.error||"Sem permissão"); });
+    }
+    useEffect(load,[]);
+    function criar(){
+      if(!nemail||!npass){ toast("Preencha e-mail e senha"); return; }
+      if(DEMO||!sb){ toast("Requer modo produção (login do master)"); return; }
+      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"create",name:nname,email:nemail,password:npass,role:nrole}}).then(function(r){ var d=(r&&r.data)||{}; if(d.ok){ toast("Usuário criado"); setNname("");setNemail("");setNpass(""); load(); } else toast(d.error||"Erro"); });
+    }
+    var inp={background:"var(--chip)",border:"1px solid var(--line)",borderRadius:"10px",padding:"10px 12px",color:"var(--text)",fontFamily:"var(--font)",fontSize:"13px",outline:"none",width:"100%"};
+    return h("div",null,
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Usuários"), h("div",{className:"sub"},"Controle de acesso · exclusivo do master"))),
+      h("div",{className:"grid"},
+        h("div",{className:"panel glass"},
+          h("div",{className:"ph"}, h("h3",null,"Novo usuário"), h("span",{className:"tag ai"},"Master")),
+          h("div",{style:{display:"flex",flexDirection:"column",gap:"9px"}},
+            h("input",{style:inp,placeholder:"Nome",value:nname,onChange:function(e){setNname(e.target.value);}}),
+            h("input",{style:inp,placeholder:"E-mail",value:nemail,onChange:function(e){setNemail(e.target.value);}}),
+            h("input",{style:inp,type:"password",placeholder:"Senha",value:npass,onChange:function(e){setNpass(e.target.value);}}),
+            h("select",{style:inp,value:nrole,onChange:function(e){setNrole(e.target.value);}},
+              ["admin","supervisor","coordinator","leader","employee"].map(function(r){return h("option",{key:r,value:r},r);})),
+            h("button",{className:"tbtn",style:{justifyContent:"center"},onClick:criar}, Icon("users")," Criar usuário")
+          )
+        ),
+        h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
+          h("table",{className:"tbl"},
+            h("thead",null,h("tr",null,["Usuário","E-mail","Papel"].map(function(t,i){return h("th",{key:i},t);}))),
+            h("tbody",null, loading? [h("tr",{key:0},h("td",{colSpan:3,style:{color:"var(--muted)"}},"Carregando…"))] : list.map(function(u,i){return h("tr",{key:i},
+              h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(u.name||u.email,i),h("b",null,u.name||u.email))),
+              h("td",null,u.email),
+              h("td",null,h("span",{className:"badge "+(u.role==="master"?"b-pj":"b-clt")},u.role)));}))
+          )
+        )
+      ),
+      h("div",{className:"hint"}, (DEMO||!sb)?"Demonstração — a criação real de usuários exige login do master no modo produção.":"Gestão de usuários protegida: só o master pode listar e criar.")
+    );
+  }
+
+  var VIEWS={dash:Dashboard,func:Funcionarios,esc:Escalas,ponto:Ponto,banco:Banco,rel:Relatorios,usuarios:Usuarios,ia:IA,cfg:Config};
   var NAV=[["dash","Dashboard","grid"],["func","Funcionários","users"],["esc","Escalas","cal"],["ponto","Controle de Ponto","clock","PRO"],["banco","Banco de Horas","scale","PRO"],["rel","Relatórios","doc"]];
   var NAV2=[["ia","IA — Supervisor","spark","ENT"],["cfg","Configurações","gear"]];
 
   function Shell(props){
     var v=useState("dash"),view=v[0],setView=v[1];
+    var hh=useState([]),hist=hh[0],setHist=hh[1];
+    function nav(x){ if(x!==view){ setHist(hist.concat([view])); setView(x); } }
+    function goBack(){ if(hist.length){ setView(hist[hist.length-1]); setHist(hist.slice(0,-1)); } else { setView("dash"); } }
     var units=(props.store&&props.store.units&&props.store.units.length)?props.store.units:DATA.units;
     var u=useState(units[0]?units[0].id:"salvador"),unit=u[0],setUnit=u[1];
     function unitName(){var f=units.filter(function(x){return x.id===unit;})[0];return f?f.name:(units[0]?units[0].name:"");}
     function navLink(item){
-      return h("a",{key:item[0],className:view===item[0]?"active":"",onClick:function(){setView(item[0]);}},
+      return h("a",{key:item[0],className:view===item[0]?"active":"",onClick:function(){nav(item[0]);}},
         Icon(item[2]), h("span",null,item[1]), item[3]?h("span",{className:"plan"},item[3]):null);
     }
     var View=VIEWS[view]||Dashboard;
@@ -556,15 +638,74 @@ window.FLOWSHIFT_CONFIG = {
         h("div",{className:"nav-lbl"},"Avançado"),
         h("nav",{className:"nav"}, NAV2.map(navLink)),
         h("div",{className:"side-foot"},
-          h("div",{className:"avatar"}, (props.user.name||"US").split(" ").map(function(w){return w[0];}).slice(0,2).join("")),
-          h("div",{className:"who"}, h("b",null,props.user.name), h("span",null,"Administrador")),
-          h("button",{className:"tgl",title:"Alternar tema",onClick:function(){props.setTheme(props.theme==="dark"?"light":"dark");}}, Icon(props.theme==="dark"?"moon":"sun"))
-        )
+          h(FsUserMenu,{user:props.user,setUser:props.setUser,theme:props.theme,setTheme:props.setTheme,onLogout:props.onLogout}))
       ),
-      h("main",{className:"main"}, h(View,{unit:unit,unitName:unitName(),go:setView,setTheme:props.setTheme,store:props.store}))
+      h("main",{className:"main"},
+        view!=="dash" ? h("button",{className:"backbtn glass",onClick:goBack}, Icon("back"), h("span",null,"Voltar")) : null,
+        h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store}))
     );
   }
 
+  function fsAvatar(u,size){ var s=size||36; if(u&&u.photo) return h("img",{src:u.photo,alt:"",style:{width:s,height:s,borderRadius:"50%",objectFit:"cover",flex:"none"}});
+    return h("div",{className:"avatar",style:{width:s,height:s,flex:"none"}}, ((u&&u.name)||"US").split(" ").map(function(w){return w[0];}).slice(0,2).join("").toUpperCase()); }
+  function fsCompress(f){ return new Promise(function(res,rej){
+    if(!/^image\//.test(f.type||"")){ rej(); return; }
+    var u=URL.createObjectURL(f), im=new Image();
+    im.onload=function(){ try{URL.revokeObjectURL(u);}catch(e){} var mx=160,w=im.width,hh=im.height,sc=Math.min(1,mx/Math.max(w,hh));
+      var cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(hh*sc)),cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+      cv.getContext("2d").drawImage(im,0,0,cw,ch); res(cv.toDataURL("image/jpeg",0.85)); };
+    im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} rej(); }; im.src=u;
+  }); }
+  function fsField(l,c){ return h("div",{style:{marginBottom:"12px"}}, h("div",{style:{fontSize:"11.5px",color:"var(--muted)",marginBottom:"5px"}},l), c); }
+  function FsProfileEditor(props){
+    var user=props.user||{};
+    var n=useState(user.name||""),nome=n[0],setNome=n[1];
+    var e=useState(user.email||""),email=e[0],setEmail=e[1];
+    var pw=useState(""),senha=pw[0],setSenha=pw[1];
+    var ph=useState(user.photo||""),photo=ph[0],setPhoto=ph[1];
+    var bs=useState(false),busy=bs[0],setBusy=bs[1];
+    function onFoto(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f)return; fsCompress(f).then(setPhoto).catch(function(){toast("Imagem inválida");}); }
+    function salvar(){ setBusy(true);
+      props.setUser(Object.assign({},user,{name:nome,photo:photo,email:email}));
+      var au={}; if(email&&email!==user.email) au.email=email; if(senha) au.password=senha;
+      var op=(sb&&Object.keys(au).length)?sb.auth.updateUser(au):Promise.resolve({error:null});
+      op.then(function(r){ setBusy(false);
+        if(r&&r.error){ toast("Login: "+r.error.message); }
+        else { toast(au.email&&sb?"Salvo. Confirme o e-mail.":"Perfil atualizado"); }
+        props.onClose();
+      }).catch(function(){ setBusy(false); toast("Erro ao salvar"); });
+    }
+    return h("div",{className:"fs-modal-bg",onClick:function(ev){ if(ev.target===ev.currentTarget) props.onClose(); }},
+      h("div",{className:"fs-modal glass"},
+        h("h3",{style:{margin:"0 0 16px"}},"Meu perfil"),
+        h("div",{style:{display:"flex",gap:"14px",alignItems:"center",marginBottom:"16px"}},
+          fsAvatar({name:nome,photo:photo},64),
+          h("label",{className:"tbtn",style:{cursor:"pointer"}},"📷 Trocar foto", h("input",{type:"file",accept:"image/*",style:{display:"none"},onChange:onFoto}))),
+        fsField("Nome", h("input",{className:"fs-inp",value:nome,onChange:function(e){setNome(e.target.value);}})),
+        fsField("E-mail de acesso (login)", h("input",{className:"fs-inp",type:"email",value:email,onChange:function(e){setEmail(e.target.value);}})),
+        fsField("Nova senha (deixe em branco p/ manter)", h("input",{className:"fs-inp",type:"password",value:senha,placeholder:"••••••",onChange:function(e){setSenha(e.target.value);}})),
+        !sb?h("div",{style:{fontSize:"11.5px",color:"var(--muted)",marginTop:"8px"}},"Modo demonstração: e-mail/senha aplicam na versão conectada."):null,
+        h("div",{style:{display:"flex",gap:"8px",marginTop:"16px"}},
+          h("button",{className:"tbtn primary",disabled:busy,onClick:salvar,style:{flex:1}},busy?"Salvando…":"Salvar"),
+          h("button",{className:"tbtn",disabled:busy,onClick:props.onClose},"Cancelar"))));
+  }
+  function FsUserMenu(props){
+    var o=useState(false),open=o[0],setOpen=o[1];
+    var ed=useState(false),edit=ed[0],setEdit=ed[1];
+    var user=props.user||{};
+    return h("div",{className:"fs-usermenu"},
+      h("button",{className:"fs-uchip",onClick:function(){setOpen(!open);}},
+        fsAvatar(user,34),
+        h("div",{className:"who"}, h("b",null,user.name||"Usuário"), h("span",null,"Administrador · "+(user.level||"N100"))),
+        h("span",{className:"cx"},open?"▴":"▾")),
+      open?h("div",{className:"fs-uback",onClick:function(){setOpen(false);}}):null,
+      open?h("div",{className:"fs-upop glass"},
+        h("button",{className:"fs-umi",onClick:function(){setOpen(false);setEdit(true);}}, Icon("gear"), h("span",null,"Meu perfil / trocar senha")),
+        h("button",{className:"fs-umi",onClick:function(){setOpen(false);props.setTheme(props.theme==="dark"?"light":"dark");}}, Icon(props.theme==="dark"?"sun":"moon"), h("span",null,"Alternar tema")),
+        h("button",{className:"fs-umi danger",onClick:function(){setOpen(false);props.onLogout();}}, Icon("logout"), h("span",null,"Trancar / Sair"))
+      ):null,
+      edit?h(FsProfileEditor,{user:user,setUser:props.setUser,onClose:function(){setEdit(false);}}):null);
+  }
   function App(){
     var us=useState(null),user=us[0],setUser=us[1];
     var th=useState("dark"),theme=th[0],setThemeS=th[1];
@@ -606,8 +747,9 @@ window.FLOWSHIFT_CONFIG = {
       window.addEventListener("mousemove",mm); loop();
       return function(){window.removeEventListener("mousemove",mm);cancelAnimationFrame(raf);};
     },[]);
+    function logout(){ try{ if(sb) sb.auth.signOut(); }catch(e){} setStore(null); setUser(null); }
     if(!user) return h(Login,{onLogin:setUser});
-    return h(Shell,{user:user,theme:theme,setTheme:setTheme,store:store});
+    return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,onLogout:logout});
   }
 
   var root=document.getElementById("root");
