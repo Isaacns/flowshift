@@ -636,7 +636,7 @@ window.FLOWSHIFT_CONFIG = {
         h("div",{className:"nav-lbl"},"Operação"),
         h("nav",{className:"nav"}, NAV.map(navLink)),
         h("div",{className:"nav-lbl"},"Avançado"),
-        h("nav",{className:"nav"}, NAV2.map(navLink)),
+        h("nav",{className:"nav"}, ((DEMO||(props.store&&props.store.isMaster))?[["usuarios","Usuários","users"]]:[]).concat(NAV2).map(navLink)),
         h("div",{className:"side-foot"},
           h(FsUserMenu,{user:props.user,setUser:props.setUser,theme:props.theme,setTheme:props.setTheme,onLogout:props.onLogout}))
       ),
@@ -717,7 +717,8 @@ window.FLOWSHIFT_CONFIG = {
           sb.from("units").select("id,name"),
           sb.from("employees").select("id,full_name,role_title,contract_type,status"),
           sb.from("time_entries").select("nsr,kind,ts").order("ts",{ascending:true}),
-          sb.from("hour_bank_ledger").select("employee_id,delta")
+          sb.from("hour_bank_ledger").select("employee_id,delta"),
+          sb.from("masters").select("user_id")
         ]).then(function(res){
           var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name};});
           var emps=res[1].data||[];
@@ -736,7 +737,7 @@ window.FLOWSHIFT_CONFIG = {
             ["Unidades",String(units.length),"","var(--violet)","flat","ativas",Math.min(100,units.length*20)],
             ["Escala","publicada","","var(--good)","flat","semana atual",100]
           ];
-          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis });
+          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
     },[user]);
