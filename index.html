@@ -441,22 +441,22 @@ window.FLOWSHIFT_CONFIG = {
     var g=useState(false),gen=g[0],setGen=g[1];
     var b=useState(false),busy=b[0],setBusy=b[1];
     var r=useState(null),result=r[0],setResult=r[1];
-    function gerar(){
+    function gerar(commit){
       setBusy(true); setResult(null);
       if(!DEMO && sb){
-        sb.functions.invoke("flowshift-gerar-escala",{ body:{ unit_id:props.unit, days:7, demand:{M:1,N:1} } })
+        sb.functions.invoke("flowshift-gerar-escala",{ body:{ unit_id:props.unit, days:7, demand:{M:1,N:1}, commit:commit===true } })
           .then(function(res){ setBusy(false); setGen(true);
             var d=res.data||{}; setResult(d);
-            toast(d.ok?("Motor: "+d.coverage_pct+"% coberta · "+(d.gaps?d.gaps.length:0)+" buraco(s)"):"Erro no motor");
+            toast(d.ok?((commit===true?"Escala publicada · ":"Motor: ")+d.coverage_pct+"% coberta · "+(d.gaps?d.gaps.length:0)+" buraco(s)"+(d.committed?" · gravada no banco":"")):("Erro: "+(d.error||"motor")));
           }).catch(function(e){ setBusy(false); toast("Falha ao chamar o motor"); });
         return;
       }
-      setTimeout(function(){ setBusy(false); setGen(true); toast("Escala gerada · 96% coberta · 1 buraco reportado"); },900);
+      setTimeout(function(){ setBusy(false); setGen(true); toast(commit===true?"Escala publicada · 96% coberta":"Escala gerada · 96% coberta · 1 buraco reportado"); },900);
     }
     return h("div",null,
       h("div",{className:"top"}, h("div",null,h("h1",null,"Escalas"),h("div",{className:"sub"},"Semana 06–12 jul · 12x36 · Enfermagem"+((!DEMO&&sb)?" · motor ao vivo":""))),
-        h("button",{className:"tbtn ghost",onClick:function(){toast("Escala publicada e notificada");}}, Icon("doc")," Publicar"),
-        h("button",{className:"tbtn",onClick:gerar}, Icon("spark")," Gerar com motor")),
+        h("button",{className:"tbtn ghost",onClick:function(){gerar(true);}}, Icon("doc")," Publicar"),
+        h("button",{className:"tbtn",onClick:function(){gerar(false);}}, Icon("spark")," Gerar com motor")),
       h("div",{className:"panel glass"}, busy
         ? h("div",{style:{textAlign:"center",padding:"40px",color:"var(--muted)"}}, h("b",null,"Motor gerando…"), h("br"), "aplicando restrições rígidas (11h/35h) e otimizando folgas")
         : (result
