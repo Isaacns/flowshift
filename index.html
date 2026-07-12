@@ -364,7 +364,7 @@ window.FLOWSHIFT_CONFIG = {
       h("div",{className:"top"},
         h("div",null, h("h1",null,"Centro de Operações"), h("div",{className:"sub"}, props.unitName+" · Sábado, 11 jul 2026 · 14:32"+(live?" · ● ao vivo":""))),
         h("div",{className:"search glass"}, Icon("search"), h("input",{placeholder:"Buscar funcionário, escala..."})),
-        h("button",{className:"tbtn ghost",onClick:function(){toast("Relatório gerado (PDF)");}}, Icon("doc")," Relatório"),
+        h("button",{className:"tbtn ghost",onClick:function(){props.go("rel");}}, Icon("doc")," Relatório"),
         h("button",{className:"tbtn",onClick:function(){props.go("esc");}}, Icon("spark")," Gerar escala")
       ),
       h("div",{className:"kpis"}, k.map(function(x,i){return h("div",{className:"kpi glass",key:i},
@@ -541,10 +541,126 @@ window.FLOWSHIFT_CONFIG = {
       )
     );
   }
-  function Relatorios(){
+  // ===== Relatórios reais (espelho de ponto · previsto×realizado) =====
+  function num(x){ return (Math.round(x*100)/100).toFixed(2).replace(".",","); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+  function fmtH(x){ if(x==null) return "—"; var neg=x<0; x=Math.abs(x); var hh=Math.floor(x+1e-6); var mm=Math.round((x-hh)*60); if(mm===60){hh++;mm=0;} return (neg?"−":"")+hh+"h"+(mm<10?"0":"")+mm; }
+  function tzDate(ts){ return new Date(ts).toLocaleDateString("en-CA",{timeZone:"America/Bahia"}); }
+  function tzTime(ts){ return ts? new Date(ts).toLocaleTimeString("pt-BR",{timeZone:"America/Bahia",hour:"2-digit",minute:"2-digit",hour12:false}) : "—"; }
+  function monthRange(m){ var s=m+"-01"; var d=new Date(m+"-01T00:00:00"); d.setMonth(d.getMonth()+1); var e=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01"; return [s,e]; }
+  function dayReal(m){ if(!m||!m.in||!m.out) return null; var ms=new Date(m.out)-new Date(m.in); if(m.break_start&&m.break_end) ms-=(new Date(m.break_end)-new Date(m.break_start)); return ms>0? ms/3600000 : 0; }
+  function repCompute(entries, assigns){
+    var byDay={}; entries.forEach(function(e){ var k=e.employee_id,d=tzDate(e.ts); (byDay[k]=byDay[k]||{}); (byDay[k][d]=byDay[k][d]||{}); if(!byDay[k][d][e.kind]) byDay[k][d][e.kind]=e.ts; });
+    var prev={}; assigns.forEach(function(a){ var k=a.employee_id; (prev[k]=prev[k]||{}); prev[k][a.work_date]=(prev[k][a.work_date]||0)+Number(a.hours||0); });
+    return {byDay:byDay, prev:prev};
+  }
+  function nightHours(startISO,endISO){ if(!startISO||!endISO) return 0; var OFF=-3*3600000; var a=new Date(startISO).getTime()+OFF, b=new Date(endISO).getTime()+OFF; if(b<=a) return 0; var dayMs=86400000, total=0, sd=Math.floor(a/dayMs)-1, ed=Math.floor(b/dayMs)+1; for(var d=sd; d<=ed; d++){ var ws=d*dayMs+22*3600000, we=(d+1)*dayMs+5*3600000, s=Math.max(a,ws), e=Math.min(b,we); if(e>s) total+=(e-s); } return total/3600000; }
+  function empRows(emp, comp){
+    var bd=comp.byDay[emp.id]||{}, pv=comp.prev[emp.id]||{}, days={};
+    Object.keys(bd).forEach(function(d){days[d]=1;}); Object.keys(pv).forEach(function(d){days[d]=1;});
+    var rows=Object.keys(days).sort().map(function(d){ var m=bd[d]||{}; var real=dayReal(m); var previsto=(pv[d]!=null)?pv[d]:null;
+      var saldo=(real!=null&&previsto!=null)?real-previsto:((real!=null&&previsto==null)?real:null);
+      var night=(m.in&&m.out)?Math.max(0, nightHours(m.in,m.out)-((m.break_start&&m.break_end)?nightHours(m.break_start,m.break_end):0)):0;
+      var extra=(real!=null&&previsto!=null)?Math.max(0, real-previsto):0;
+      var dow=new Date(d+"T12:00:00").getDay(), he100=(dow===0)?extra:0, he50=(dow===0)?0:extra;
+      return {date:d, previsto:previsto, in:m.in, bs:m.break_start, be:m.break_end, out:m.out, real:real, saldo:saldo, night:night, he50:he50, he100:he100}; });
+    var tp=0,tr=0,ts=0,dias=0,tn=0,t5=0,t1=0; rows.forEach(function(r){ if(r.previsto!=null)tp+=r.previsto; if(r.real!=null){tr+=r.real;dias++;} if(r.saldo!=null)ts+=r.saldo; tn+=r.night; t5+=r.he50; t1+=r.he100; });
+    return {rows:rows, prev:tp, real:tr, saldo:ts, dias:dias, night:tn, he50:t5, he100:t1};
+  }
+  var MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  function espelhoDoc(unit, month, per){
+    var c=month.split("-"), compLabel=MESES[parseInt(c[1],10)-1]+" de "+c[0];
+    var gen=new Date().toLocaleString("pt-BR",{timeZone:"America/Bahia"});
+    var LOGO="https://app.viziostudio.com.br/assets/brand/vizio-cube.png";
+    var css="*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Century Gothic','Trebuchet MS',sans-serif;color:#0B0F1A;background:#fff}"+
+      ".page{padding:26px 30px;max-width:900px;margin:0 auto}.page+.page{page-break-before:always}"+
+      ".hd{display:flex;align-items:center;gap:14px;border-bottom:3px solid #1C64F0;padding-bottom:12px;margin-bottom:14px}.hd img{width:46px;height:46px;object-fit:contain}.hd h1{font-size:19px;color:#0B1E45}.hd small{color:#1C64F0;font-weight:700;letter-spacing:.5px}"+
+      "table.meta{width:100%;margin-bottom:12px;font-size:12.5px}table.meta td{padding:3px 0}"+
+      "table.grid{width:100%;border-collapse:collapse;font-size:12px}table.grid th{background:#0B1E45;color:#fff;padding:7px 6px;text-align:center;font-weight:700}table.grid td{border:1px solid #cdd8ee;padding:5px 6px;text-align:center}table.grid tbody tr:nth-child(even){background:#f3f7ff}.grid .tot{background:#e6eeff;font-weight:800}.grid .neg{color:#C81E4E}.grid .pos{color:#0B7A46}"+
+      ".sign{display:flex;gap:50px;margin:44px 10px 0}.sign div{flex:1;text-align:center;font-size:11.5px;color:#333}.sign span{display:block;border-top:1px solid #333;margin-bottom:5px;height:1px}"+
+      ".ft{margin-top:22px;font-size:10px;color:#7a89a8;text-align:center}@media print{.page{padding:14px 16px}}";
+    var body=per.map(function(p){
+      var rows=p.r.rows.map(function(r){ var wd=new Date(r.date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}); var dd=r.date.slice(8)+"/"+r.date.slice(5,7);
+        return "<tr><td>"+dd+"</td><td>"+wd+"</td><td>"+(r.previsto!=null?num(r.previsto):"—")+"</td><td>"+tzTime(r.in)+"</td><td>"+tzTime(r.bs)+"</td><td>"+tzTime(r.be)+"</td><td>"+tzTime(r.out)+"</td><td>"+(r.real!=null?num(r.real):"—")+"</td><td>"+(r.night?num(r.night):"—")+"</td><td>"+(r.he50?num(r.he50):"—")+"</td><td>"+(r.he100?num(r.he100):"—")+"</td><td class='"+(r.saldo<0?"neg":"pos")+"'>"+(r.saldo!=null?((r.saldo>=0?"+":"")+num(r.saldo)):"—")+"</td></tr>"; }).join("");
+      var tot="<tr class='tot'><td colspan='2'>TOTAIS</td><td>"+num(p.r.prev)+"</td><td colspan='4'></td><td>"+num(p.r.real)+"</td><td>"+num(p.r.night)+"</td><td>"+num(p.r.he50)+"</td><td>"+num(p.r.he100)+"</td><td class='"+(p.r.saldo<0?"neg":"pos")+"'>"+(p.r.saldo>=0?"+":"")+num(p.r.saldo)+"</td></tr>";
+      return "<section class='page'><div class='hd'><img src='"+LOGO+"'/><div><h1>Espelho de Ponto Eletrônico</h1><small>Portaria MTP nº 671/2021 · REP-P</small></div></div>"+
+        "<table class='meta'><tr><td><b>Empresa/Unidade:</b> "+esc(unit)+"</td><td><b>Competência:</b> "+compLabel+"</td></tr><tr><td><b>Funcionário:</b> "+esc(p.emp.full_name)+"</td><td><b>Cargo:</b> "+esc(p.emp.role_title||"—")+"</td></tr>"+(p.emp.cpf?"<tr><td><b>CPF:</b> "+esc(p.emp.cpf)+"</td><td></td></tr>":"")+"</table>"+
+        "<table class='grid'><thead><tr><th>Data</th><th>Dia</th><th>Prev.</th><th>Entrada</th><th>Ini.Int</th><th>Fim.Int</th><th>Saída</th><th>Trab.</th><th>Not.</th><th>HE50</th><th>HE100</th><th>Saldo</th></tr></thead><tbody>"+rows+tot+"</tbody></table>"+
+        "<div class='sign'><div><span></span>Assinatura do Empregado</div><div><span></span>Assinatura do Empregador</div></div>"+
+        "<div class='ft'>Gerado em "+gen+" · FlowShift by Vizio · Horas em decimal (8,50 = 8h30)</div></section>";
+    }).join("");
+    return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><title>Espelho de Ponto — "+compLabel+"</title><style>"+css+"</style></head><body>"+body+"</body></html>";
+  }
+  function espelhoView(p){
+    return h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
+      h("div",{className:"ph",style:{padding:"10px 12px 4px",flexWrap:"wrap"}}, h("h3",null,"Espelho — "+p.emp.full_name), h("span",{className:"tag live"},"Prev "+fmtH(p.r.prev)+" · Real "+fmtH(p.r.real)+" · Not "+fmtH(p.r.night)+" · HE50 "+fmtH(p.r.he50)+" · HE100 "+fmtH(p.r.he100)+" · Saldo "+(p.r.saldo>=0?"+":"")+fmtH(p.r.saldo))),
+      h("table",{className:"tbl"},
+        h("thead",null,h("tr",null,["Data","Dia","Prev.","Entrada","Ini.Int","Fim.Int","Saída","Trab.","Not.","HE50","HE100","Saldo"].map(function(t,i){return h("th",{key:i},t);}))),
+        h("tbody",null, p.r.rows.map(function(r,i){ var wd=new Date(r.date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}); var dd=r.date.slice(8)+"/"+r.date.slice(5,7);
+          return h("tr",{key:i}, h("td",null,dd), h("td",null,wd), h("td",null,r.previsto!=null?fmtH(r.previsto):"—"), h("td",null,tzTime(r.in)), h("td",null,tzTime(r.bs)), h("td",null,tzTime(r.be)), h("td",null,tzTime(r.out)), h("td",null,r.real!=null?fmtH(r.real):"—"), h("td",null,r.night?fmtH(r.night):"—"), h("td",null,r.he50?fmtH(r.he50):"—"), h("td",null,r.he100?fmtH(r.he100):"—"), h("td",{style:{fontWeight:800,color:(r.saldo==null?"var(--muted)":(r.saldo<0?"var(--bad)":"var(--good)"))}}, r.saldo!=null?((r.saldo>=0?"+":"")+fmtH(r.saldo)):"—")); }))
+      )
+    );
+  }
+  function resumoView(per){
+    return h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
+      h("div",{className:"ph",style:{padding:"10px 12px 4px"}}, h("h3",null,"Resumo do mês"), h("span",{className:"more"},per.length+" funcionário(s)")),
+      h("table",{className:"tbl"},
+        h("thead",null,h("tr",null,["Funcionário","Dias","Previsto","Realizado","Noturno","HE 50%","HE 100%","Saldo"].map(function(t,i){return h("th",{key:i},t);}))),
+        h("tbody",null, per.map(function(p,i){ return h("tr",{key:i},
+          h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(p.emp.full_name,i),h("b",null,p.emp.full_name))),
+          h("td",null,String(p.r.dias)), h("td",null,fmtH(p.r.prev)), h("td",null,fmtH(p.r.real)), h("td",null,fmtH(p.r.night)), h("td",null,fmtH(p.r.he50)), h("td",null,fmtH(p.r.he100)),
+          h("td",{style:{fontWeight:800,color:p.r.saldo<0?"var(--bad)":"var(--good)"}}, (p.r.saldo>=0?"+":"")+fmtH(p.r.saldo))); }))
+      )
+    );
+  }
+  function Relatorios(props){
+    var store=props&&props.store, emps=(store&&store.employees&&store.employees.length)?store.employees:null;
+    var now=new Date(), curM=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+    var mth=useState(curM),month=mth[0],setMonth=mth[1];
+    var ei=useState("all"),empId=ei[0],setEmpId=ei[1];
+    var bs=useState(false),busy=bs[0],setBusy=bs[1];
+    var rr=useState(null),res=rr[0],setRes=rr[1];
+    function gerar(){
+      if(DEMO||!sb){ toast("Relatórios usam dados reais (modo produção)"); return; }
+      if(!emps){ toast("Sem funcionários carregados"); return; }
+      setBusy(true); setRes(null);
+      var rg=monthRange(month), s=rg[0]+"T00:00:00-03:00", e=rg[1]+"T00:00:00-03:00";
+      var qe=sb.from("time_entries").select("employee_id,kind,ts").gte("ts",s).lt("ts",e);
+      var qa=sb.from("assignments").select("employee_id,work_date,shift,hours").gte("work_date",rg[0]).lt("work_date",rg[1]);
+      if(empId!=="all"){ qe=qe.eq("employee_id",empId); qa=qa.eq("employee_id",empId); }
+      Promise.all([qe,qa]).then(function(x){ setBusy(false);
+        var comp=repCompute((x[0]&&x[0].data)||[], (x[1]&&x[1].data)||[]);
+        var pool=(empId==="all")?emps:emps.filter(function(em){return em.id===empId;});
+        var per=pool.map(function(em){ return {emp:em, r:empRows(em,comp)}; }).filter(function(p){ return p.r.rows.length>0; });
+        setRes({month:month, per:per, single:empId!=="all"});
+        if(!per.length) toast("Sem marcações/escala nesse mês");
+      }).catch(function(){ setBusy(false); toast("Falha ao consultar dados"); });
+    }
+    function imprimir(){ if(!res||!res.per.length){toast("Gere o relatório primeiro");return;}
+      var w=window.open("","_blank"); if(!w){toast("Permita pop-ups para gerar o PDF");return;}
+      w.document.open(); w.document.write(espelhoDoc(props.unitName||"—", res.month, res.per)); w.document.close(); w.focus();
+      setTimeout(function(){ try{w.print();}catch(e){} },500);
+    }
+    function csv(){ if(!res||!res.per.length){toast("Gere o relatório primeiro");return;}
+      var lines=[["Funcionario","Data","Previsto_h","Entrada","Ini_Interv","Fim_Interv","Saida","Trabalhado_h","Noturno_h","HE50_h","HE100_h","Saldo_h"].join(";")];
+      res.per.forEach(function(p){ p.r.rows.forEach(function(r){ lines.push([p.emp.full_name, r.date, r.previsto!=null?num(r.previsto):"", tzTime(r.in), tzTime(r.bs), tzTime(r.be), tzTime(r.out), r.real!=null?num(r.real):"", r.night?num(r.night):"", r.he50?num(r.he50):"", r.he100?num(r.he100):"", r.saldo!=null?num(r.saldo):""].join(";")); }); });
+      var blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv;charset=utf-8"}); var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="espelho-ponto-"+res.month+".csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1200);
+    }
+    var inp={background:"var(--chip)",border:"1px solid var(--line)",borderRadius:"10px",padding:"9px 11px",color:"var(--text)",fontFamily:"var(--font)",fontSize:"13px",outline:"none"};
     return h("div",null,
-      h("div",{className:"top"}, h("div",null,h("h1",null,"Relatórios"),h("div",{className:"sub"},"Previsto × realizado · exportação PDF / CSV / eSocial-ready"))),
-      h("div",{className:"kpis",style:{gridTemplateColumns:"repeat(4,1fr)"}}, DATA.rel.map(function(r,i){return h("div",{className:"kpi glass",style:{cursor:"pointer"},key:i,onClick:function(){toast("Gerando: "+r[0]);}}, h("div",{className:"kt"},h("span",null,r[0])), h("div",{className:"delta flat",style:{marginTop:"10px"}},r[1]), h("div",{className:"tbtn ghost",style:{marginTop:"12px",justifyContent:"center"}},"Gerar"));}))
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Relatórios"),h("div",{className:"sub"},"Espelho de ponto · previsto × realizado · dados reais"+((!DEMO&&sb)?" · ● ao vivo":" · modo demo")))),
+      h("div",{className:"panel glass",style:{display:"flex",flexWrap:"wrap",gap:"12px",alignItems:"flex-end"}},
+        h("div",null,h("div",{style:{fontSize:"11px",color:"var(--muted)",marginBottom:"4px"}},"Competência"), h("input",{type:"month",style:inp,value:month,onChange:function(e){setMonth(e.target.value);}})),
+        h("div",null,h("div",{style:{fontSize:"11px",color:"var(--muted)",marginBottom:"4px"}},"Funcionário"),
+          h("select",{style:inp,value:empId,onChange:function(e){setEmpId(e.target.value);}},
+            [h("option",{key:"all",value:"all"},"Todos os funcionários")].concat((emps||[]).map(function(em){return h("option",{key:em.id,value:em.id},em.full_name);})))),
+        h("button",{className:"tbtn",onClick:gerar}, Icon("doc")," Gerar"),
+        res? h("button",{className:"tbtn ghost",onClick:imprimir}, Icon("doc")," Imprimir / PDF"):null,
+        res? h("button",{className:"tbtn ghost",onClick:csv},"CSV"):null
+      ),
+      busy? h("div",{className:"panel glass",style:{textAlign:"center",padding:"36px",color:"var(--muted)"}},"Consultando dados…"):null,
+      (res&&!busy)? (res.single? (res.per.length?espelhoView(res.per[0]):h("div",{className:"panel glass",style:{padding:"28px",textAlign:"center",color:"var(--muted)"}},"Sem dados no período.")) : resumoView(res.per)) : null,
+      (!res&&!busy)? h("div",{className:"hint"},"Escolha a competência e o funcionário, depois clique em Gerar. O PDF sai no padrão legal (Portaria 671/2021)."):null
     );
   }
   function IA(){
