@@ -406,8 +406,15 @@ window.FLOWSHIFT_CONFIG = {
   }
   function PendItem(props){
     var p=props.p, st=useState(null),done=st[0],setDone=st[1];
+    function act(label,action){
+      setDone(label);
+      if(p[6] && !DEMO && sb){
+        if(p[7]==="swap"){ sb.functions.invoke("flowshift-troca",{body:{swap_id:p[6],action:action==="approve"?"adm_approve":"adm_reject"}}).then(function(r){var d=(r&&r.data)||{};toast(d.ok?("Troca: "+d.status):("Erro: "+(d.error||"")));}).catch(function(){toast("Falha ao processar");}); }
+        else { sb.from("time_corrections").update({status:action==="approve"?"approved":"rejected"}).eq("id",p[6]).then(function(r){toast((r&&r.error)?("Erro: "+r.error.message):("Correção "+label));}); }
+      } else { toast("Solicitação: "+label); }
+    }
     var acts = p[5]
-      ? [h("button",{className:"mini ok",key:1,onClick:function(){setDone("Aprovado");toast("Solicitação: Aprovado");}},"Aprovar"), h("button",{className:"mini no",key:2,onClick:function(){setDone("Recusado");toast("Solicitação: Recusado");}},"Recusar")]
+      ? [h("button",{className:"mini ok",key:1,onClick:function(){act("Aprovado","approve");}},"Aprovar"), h("button",{className:"mini no",key:2,onClick:function(){act("Recusado","reject");}},"Recusar")]
       : [h("button",{className:"mini ok",key:1,onClick:function(){setDone("Autorizado");toast("Autorizado");}},"Autorizar"), h("button",{className:"mini",key:2,onClick:function(){setDone("Adiado");}},"Depois")];
     return h("div",{className:"pend",style:done?{opacity:.45}:null},
       h("div",{className:"pi",style:{background:p[1]}}, Icon(p[0])),
@@ -720,8 +727,8 @@ window.FLOWSHIFT_CONFIG = {
           sb.from("hour_bank_ledger").select("employee_id,delta"),
           sb.from("masters").select("user_id"),
           sb.from("assignments").select("employee_id,work_date,shift,hours").order("work_date",{ascending:false}).limit(12),
-          sb.from("swap_requests").select("status,requester_id,peer_id").order("created_at",{ascending:false}).limit(8),
-          sb.from("time_corrections").select("status,requested_by").order("created_at",{ascending:false}).limit(8)
+          sb.from("swap_requests").select("id,status,requester_id,peer_id").order("created_at",{ascending:false}).limit(8),
+          sb.from("time_corrections").select("id,status,requested_by").order("created_at",{ascending:false}).limit(8)
         ]).then(function(res){
           var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name};});
           var emps=res[1].data||[];
@@ -740,8 +747,8 @@ window.FLOWSHIFT_CONFIG = {
           var assigns=(res[5]&&res[5].data)||[]; var maxd=assigns.length?assigns[0].work_date:null;
           var shifts=assigns.filter(function(a){return a.work_date===maxd;}).slice(0,6).map(function(a){ return [SL[a.shift]||a.shift, a.employee_id?(nmeMap[a.employee_id]||"—"):"— vago —", a.employee_id?(roleMap[a.employee_id]||""):"", a.employee_id?"full":"gap", a.employee_id?"Coberto":"Vaga"]; });
           var swaps=(res[6]&&res[6].data)||[]; var corrs=(res[7]&&res[7].data)||[]; var pend=[];
-          swaps.forEach(function(s){ pend.push(["swap","var(--info)","Troca de turno",(nmeMap[s.requester_id]||"—")+" ⇄ "+(nmeMap[s.peer_id]||"—"),"Aguardando aprovação do ADM",1]); });
-          corrs.forEach(function(c){ pend.push(["clock","var(--warn)","Correção de ponto",(nmeMap[c.requested_by]||"—")+" · solicitada","Aguardando aprovação",1]); });
+          swaps.forEach(function(s){ pend.push(["swap","var(--info)","Troca de turno",(nmeMap[s.requester_id]||"—")+" ⇄ "+(nmeMap[s.peer_id]||"—"),"Aguardando aprovação do ADM",1,s.id,"swap"]); });
+          corrs.forEach(function(c){ pend.push(["clock","var(--warn)","Correção de ponto",(nmeMap[c.requested_by]||"—")+" · solicitada","Aguardando aprovação",1,c.id,"correction"]); });
           var kpis=[
             ["Funcionários ativos",String(ativos),"","var(--good)","flat","de "+emps.length+" no total",Math.round(ativos/Math.max(1,emps.length)*100)],
             ["Pontos hoje",String(ponto.length),"","var(--info)","flat","marcações REP-P",Math.min(100,ponto.length*20)],
