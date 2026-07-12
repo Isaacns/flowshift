@@ -1,6 +1,6 @@
 /* FlowShift by Vizio — service worker resiliente e versionado (padrão INPERSON).
-   NÃO editar VER à mão: o build.js injeta mrh2cz2b. */
-var VER="mrh2cz2b";
+   NÃO editar VER à mão: o build.js injeta mrho37ps. */
+var VER="mrho37ps";
 var C="flowshift-"+VER;
 
 self.addEventListener("install", function(e){ self.skipWaiting(); });
