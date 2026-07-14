@@ -334,7 +334,8 @@ window.FLOWSHIFT_CONFIG = {
       sb.auth.signInWithPassword({email:email,password:pass}).then(function(r){
         setLoad(false);
         if(r.error){ setErr(r.error.message||"Falha no login"); return; }
-        props.onLogin({name:(r.data.user&&r.data.user.email)||"Usuário",email:email});
+        var md=(r.data.user&&r.data.user.user_metadata)||{};
+        props.onLogin({name:md.full_name||(r.data.user&&r.data.user.email)||"Usuário",email:email,photo:md.avatar_url||""});
       });
     }
     function doInstall(){ if(installEvt){ installEvt.prompt(); } else { toast("Use o menu do navegador → Instalar app"); } }
@@ -795,8 +796,9 @@ window.FLOWSHIFT_CONFIG = {
     function onFoto(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f)return; fsCompress(f).then(setPhoto).catch(function(){toast("Imagem inválida");}); }
     function salvar(){ setBusy(true);
       props.setUser(Object.assign({},user,{name:nome,photo:photo,email:email}));
-      var au={}; if(email&&email!==user.email) au.email=email; if(senha) au.password=senha;
-      var op=(sb&&Object.keys(au).length)?sb.auth.updateUser(au):Promise.resolve({error:null});
+      var au={data:{avatar_url:photo||null, full_name:nome||null}};
+      if(email&&email!==user.email) au.email=email; if(senha) au.password=senha;
+      var op=sb?sb.auth.updateUser(au):Promise.resolve({error:null});
       op.then(function(r){ setBusy(false);
         if(r&&r.error){ toast("Login: "+r.error.message); }
         else { toast(au.email&&sb?"Salvo. Confirme o e-mail.":"Perfil atualizado"); }
