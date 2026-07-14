@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#070A12"/>
+<title>FlowShift — Gestor</title>
+<style>
+:root{--font:'Century Gothic','Futura','Trebuchet MS',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--vizio:#1C64F0;--vizio-2:#4F8BFF;
+ --bg:#070A12;--glass:rgba(20,30,54,.6);--glass-2:rgba(26,38,66,.5);--glass-brd:rgba(140,175,255,.14);--glass-hi:rgba(255,255,255,.06);
+ --line:rgba(130,165,240,.12);--text:#EAF1FE;--muted:#93A6C9;--faint:#5E729A;--primary:#1C64F0;--primary-2:#4F8BFF;
+ --good:#34D399;--warn:#FBBF24;--bad:#FB7185;--info:#60A5FA;--violet:#A78BFA;--chip:rgba(30,45,80,.6);
+ --shadow:0 26px 60px -28px rgba(0,0,0,.85);--glow:0 0 0 1px rgba(79,139,255,.4),0 10px 34px -8px rgba(28,100,240,.5);}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;display:grid;place-items:center;padding:16px}
+.orbi{position:fixed;inset:-10%;z-index:0;overflow:hidden;pointer-events:none}
+.orbi span{position:absolute;border-radius:50%;filter:blur(70px)}
+.orbi .o1{width:52vw;height:52vw;background:rgba(28,100,240,.5);top:-16vw;right:-8vw}
+.orbi .o2{width:58vw;height:58vw;background:rgba(79,139,255,.34);bottom:-26vw;left:-14vw}
+.orbi .o3{width:36vw;height:36vw;background:rgba(124,92,240,.3);top:30%;left:44%}
+.glass{background:var(--glass);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--glass-brd);box-shadow:var(--shadow),inset 0 1px 0 var(--glass-hi)}
+.phone{position:relative;z-index:1;width:100%;max-width:420px;height:min(880px,95vh);border-radius:32px;overflow:hidden;display:flex;flex-direction:column}
+.login{display:grid;place-items:center;flex:1;padding:26px}
+.login .card{width:100%;max-width:360px;border-radius:22px;padding:30px 26px;text-align:center}
+.logo{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 20px rgba(79,139,255,.55));margin:0 auto 6px;display:block}
+.login h1{font-size:22px;font-weight:800;margin-top:8px}.login h1 span{color:var(--primary-2)}
+.login .sub{color:var(--muted);font-size:12px;margin:4px 0 20px}
+.inp{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:12px 13px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:11px}
+.btn{width:100%;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border:0;border-radius:12px;padding:13px;font-family:var(--font);font-weight:800;font-size:14px;cursor:pointer;box-shadow:var(--glow)}
+.err{color:var(--bad);font-size:12px;margin-top:10px;min-height:15px}
+.hdr{padding:15px 17px 12px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--line)}
+.hdr img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(28,100,240,.5))}
+.hdr .t b{font-size:14.5px;display:block;line-height:1}.hdr .t small{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--faint)}
+.hdr .t small b{color:var(--primary-2);display:inline;font-size:9px}
+.hdr .me{margin-left:auto;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--vizio),var(--violet));display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px;box-shadow:var(--glow);cursor:pointer}
+.bk{background:none;border:0;color:var(--primary-2);font-family:var(--font);font-weight:800;font-size:13px;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px}
+.scroll{flex:1;overflow-y:auto;padding:16px 15px 24px}.scroll::-webkit-scrollbar{width:0}
+.hello{font-size:20px;font-weight:800;margin:2px 2px}.hello span{color:var(--primary-2)}
+.subhello{color:var(--muted);font-size:12px;margin:0 2px 12px}
+h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--faint);margin:16px 2px 8px;font-weight:800}
+.card{border-radius:16px;padding:14px 15px;margin-bottom:11px}
+.st2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.stat{border-radius:14px;padding:12px}.stat .v{font-size:24px;font-weight:800;line-height:1}.stat .k{font-size:10.5px;color:var(--muted);margin-top:4px;font-weight:700}
+.big{width:100%;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border:0;border-radius:15px;padding:16px;font-family:var(--font);font-weight:800;font-size:15px;cursor:pointer;box-shadow:var(--glow);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:9px}
+.act{width:100%;border-radius:14px;padding:14px 15px;font-family:var(--font);font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:9px;color:var(--text);text-align:left}
+.act svg{width:19px;height:19px;stroke:var(--primary-2);fill:none;stroke-width:2;flex:none}
+.act .cnt{margin-left:auto;background:var(--bad);color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:2px 8px}
+.full{display:flex;align-items:center;justify-content:center;gap:7px;color:var(--primary-2);font-size:12.5px;font-weight:800;padding:14px;border-top:1px solid var(--line);margin-top:6px;cursor:pointer}
+.full svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.row{display:flex;align-items:center;gap:11px;padding:10px 4px}.row+.row{border-top:1px solid var(--line)}
+.row .db{width:44px;text-align:center;flex:none}.row .db b{font-size:15px;font-weight:800;display:block;line-height:1}.row .db small{font-size:9px;color:var(--faint);text-transform:uppercase}
+.row .di{flex:1}.row .di b{font-size:12.5px}.row .di span{font-size:11px;color:var(--muted);display:block}
+.chip{font-size:10px;font-weight:800;padding:4px 9px;border-radius:20px}
+.cM{color:var(--info);background:color-mix(in srgb,var(--info) 15%,transparent)}.cN{color:var(--violet);background:color-mix(in srgb,var(--violet) 15%,transparent)}
+.cF{color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}.cP{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.pend{border-radius:14px;padding:12px 13px;margin-bottom:9px}
+.pend .ph{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.pend .ph svg{width:15px;height:15px;fill:none;stroke-width:2}
+.pend .ph b{font-size:12.5px}
+.pend p{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:9px}
+.mini2{display:flex;gap:6px}
+.mini2 button{flex:1;border:0;border-radius:10px;padding:9px;font-family:var(--font);font-weight:800;font-size:12px;cursor:pointer}
+.mok{background:color-mix(in srgb,var(--good) 17%,transparent);color:var(--good)}
+.mno{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.prev{border-radius:14px;padding:13px;margin-bottom:10px}
+.prev .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.prev .g2 div b{font-size:19px;font-weight:800;display:block;line-height:1}
+.prev .g2 div small{font-size:10px;color:var(--muted)}
+.warnbox{border-radius:12px;padding:10px 12px;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);font-size:11px;line-height:1.5;margin-bottom:9px}
+.expl{font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:12px}
+.ghost{width:100%;background:var(--glass-2);border:1px solid var(--glass-brd);color:var(--muted);border-radius:12px;padding:11px;font-family:var(--font);font-weight:800;font-size:12.5px;cursor:pointer}
+.usel{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text);font-family:var(--font);font-size:12.5px;outline:none;margin-bottom:12px}
+.empty{color:var(--faint);font-size:12px;text-align:center;padding:22px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);padding:11px 18px;border-radius:13px;font-weight:700;font-size:12px;z-index:60;opacity:0;transition:.3s;max-width:340px;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="orbi"><span class="o1"></span><span class="o2"></span><span class="o3"></span></div>
+<div id="root" class="phone glass"></div>
+<div class="toast glass" id="toast"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  var h=React.createElement, useState=React.useState, useEffect=React.useEffect;
+  var CFG={ URL:"https://emyjzjadmxgbtmxnzazu.supabase.co", KEY:"sb_publishable_PY2YDxUzGgaXRVtvCcasBA_Ml7YUBTC", SCHEMA:"flowshift" };
+  var sb=window.supabase.createClient(CFG.URL,CFG.KEY,{db:{schema:CFG.SCHEMA}});
+  var CUBE="brand/vizio-cube.png";
+  var ICONS={spark:'<path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/>',check:'<path d="M20 6L9 17l-5-5"/>',live:'<path d="M3 12h4l3-8 4 16 3-8h4"/>',cal:'<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',desk:'<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',back:'<path d="M15 19l-7-7 7-7"/>',swap:'<path d="M7 4l-4 4 4 4"/><path d="M3 8h13a4 4 0 0 1 0 8h-2"/><path d="M17 20l4-4-4-4"/>',clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'};
+  function Icon(n,st){return h("svg",{viewBox:"0 0 24 24",style:st||null,dangerouslySetInnerHTML:{__html:ICONS[n]||""}});}
+  var tT;function toast(m){var e=document.getElementById("toast");e.textContent=m;e.classList.add("show");clearTimeout(tT);tT=setTimeout(function(){e.classList.remove("show");},2600);}
+  var SL={M:["07:00–19:00","Manhã","cM"],T:["13:00–22:00","Tarde","cM"],N:["19:00–07:00","Noite","cN"],P:["Plantão","Plantão","cP"],F:["Folga","Folga","cF"]};
+  var initials=function(s){return (s||"").split(" ").map(function(w){return w[0];}).slice(0,2).join("").toUpperCase();};
+  var MANAGER=["admin","supervisor","coordinator"];
+  function today(){ return new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"}); }
+  function irDesktop(){ try{ sessionStorage.setItem("fs_force_desktop","1"); }catch(e){} location.href="../index.html"; }
+
+  function Login(props){
+    var e=useState("isaac@flowshift.local"),email=e[0],setEmail=e[1];
+    var p=useState(""),pass=p[0],setPass=p[1];
+    var er=useState(""),err=er[0],setErr=er[1];
+    var ld=useState(false),load=ld[0],setLoad=ld[1];
+    function entrar(ev){ev.preventDefault();setErr("");setLoad(true);
+      sb.auth.signInWithPassword({email:email,password:pass}).then(function(r){setLoad(false);
+        if(r.error){setErr(r.error.message||"Falha no login");return;} props.onLogin(r.data.user);});
+    }
+    return h("div",{className:"login"}, h("form",{className:"card glass",onSubmit:entrar},
+      h("img",{className:"logo",src:CUBE,alt:"Vizio"}),
+      h("h1",null,"FlowShift ",h("span",null,"Gestor")),
+      h("div",{className:"sub"},"Gestão rápida no celular"),
+      h("input",{className:"inp",type:"text",placeholder:"E-mail",value:email,onChange:function(x){setEmail(x.target.value);}}),
+      h("input",{className:"inp",type:"password",placeholder:"Senha",value:pass,onChange:function(x){setPass(x.target.value);}}),
+      h("button",{className:"btn",disabled:load},load?"Entrando…":"Entrar"),
+      h("div",{className:"err"},err)
+    ));
+  }
+
+  function Gestor(props){
+    var d=useState(null),data=d[0],setData=d[1];
+    var v=useState("home"),view=v[0],setView=v[1];
+    var u=useState(""),unit=u[0],setUnit=u[1];
+    var g=useState(null),ger=g[0],setGer=g[1];
+    var b=useState(false),busy=b[0],setBusy=b[1];
+    function load(){
+      sb.from("tenant_memberships").select("role,employee_id").eq("user_id",props.user.id).maybeSingle().then(function(m){
+        var role=m.data&&m.data.role;
+        if(!role||MANAGER.indexOf(role)<0){ setData({denied:true}); return; }
+        Promise.all([
+          sb.from("units").select("id,name"),
+          sb.from("employees").select("id,full_name,role_title,status"),
+          sb.from("assignments").select("id,employee_id,work_date,shift,hours").gte("work_date",today()).order("work_date").limit(80),
+          sb.from("time_entries").select("employee_id,kind,ts").gte("ts",today()+"T00:00:00-03:00").order("ts"),
+          sb.from("swap_requests").select("id,status,requester_id,peer_id").eq("status","adm_review"),
+          sb.from("time_corrections").select("id,status,requested_by").eq("status","pending")
+        ]).then(function(r){
+          var emps=r[1].data||[], nm={}; emps.forEach(function(e){nm[e.id]=e.full_name;});
+          var units=r[0].data||[];
+          setData({ units:units, emps:emps, nm:nm, assigns:r[2].data||[], ponto:r[3].data||[],
+                    swaps:r[4].data||[], corrs:r[5].data||[] });
+          if(!unit && units[0]) setUnit(units[0].id);
+        });
+      });
+    }
+    useEffect(load,[]);
+    if(!data) return h("div",{className:"login"},h("div",{className:"empty"},"Carregando…"));
+    if(data.denied) return h("div",{className:"login"},h("div",{className:"card glass"},
+      h("div",{className:"empty"},"Este login não tem perfil de gestor. Use o Portal do Funcionário."),
+      h("button",{className:"btn",onClick:function(){location.href="portal.html";}},"Abrir Portal"),
+      h("button",{className:"ghost",style:{marginTop:"8px"},onClick:function(){sb.auth.signOut();props.onLogout();}},"Sair")));
+
+    var pend=data.swaps.length+data.corrs.length;
+    var hoje=today();
+    var hojeAs=data.assigns.filter(function(a){return a.work_date===hoje&&a.shift!=="F";});
+    var cob=hojeAs.length? Math.round(hojeAs.filter(function(a){return !!a.employee_id;}).length/hojeAs.length*100) : null;
+    var unitName=(data.units.filter(function(x){return x.id===unit;})[0]||{}).name||"—";
+
+    function gerar(commit){
+      if(!unit){toast("Selecione a unidade");return;}
+      setBusy(true); if(!commit) setGer(null);
+      sb.functions.invoke("flowshift-gerar-escala",{body:{unit_id:unit,days:7,demand:{M:1,N:1},commit:commit===true}}).then(function(res){
+        setBusy(false); var x=(res&&res.data)||{};
+        if(!x.ok){ toast("Erro: "+(x.error||"motor")); return; }
+        if(commit){ toast("Escala publicada · "+x.coverage_pct+"% coberta"); setGer(null); setView("home"); load(); }
+        else { setGer(x); }
+      }).catch(function(){ setBusy(false); toast("Falha ao chamar o motor"); });
+    }
+    function aprovarSwap(id,ok){
+      sb.functions.invoke("flowshift-troca",{body:{swap_id:id,action:ok?"adm_approve":"adm_reject"}}).then(function(r){
+        var x=(r&&r.data)||{}; if(x.ok){toast(ok?"Troca aprovada":"Troca recusada");load();} else toast("Erro: "+(x.error||""));});
+    }
+    function aprovarCorr(id,ok){
+      sb.from("time_corrections").update({status:ok?"approved":"rejected"}).eq("id",id).then(function(r){
+        if(r&&r.error) toast("Erro: "+r.error.message); else {toast(ok?"Correção aprovada":"Correção recusada");load();}});
+    }
+
+    var HDR=h("div",{className:"hdr"}, h("img",{src:CUBE,alt:"Vizio"}),
+      h("div",{className:"t"}, h("b",null,"FlowShift"), h("small",null,"by ",h("b",null,"Vizio")," · Gestor")),
+      h("div",{className:"me",title:"Sair",onClick:function(){sb.auth.signOut();props.onLogout();}}, initials(props.user.email)));
+
+    function Voltar(){ return h("button",{className:"bk",onClick:function(){setView("home");},style:{marginBottom:"12px"}}, Icon("back",{width:"15px",height:"15px",stroke:"currentColor",fill:"none",strokeWidth:2}), "Voltar"); }
+
+    if(view==="gerar") return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
+      Voltar(),
+      h("div",{className:"hello"},"Gerar escala"),
+      h("div",{className:"subhello"}, unitName+" · próximos 7 dias · 12x36"),
+      busy? h("div",{className:"card glass",style:{textAlign:"center",padding:"34px"}}, h("b",null,"Motor gerando…"), h("div",{style:{color:"var(--muted)",fontSize:"11.5px",marginTop:"6px"}},"aplicando 11h/35h e equilibrando folgas"))
+      : (ger? h("div",null,
+          h("div",{className:"prev glass"}, h("div",{style:{fontSize:"11px",color:"var(--muted)",fontWeight:800}},"PRÉVIA DO MOTOR"),
+            h("div",{className:"g2"},
+              h("div",null,h("b",{style:{color:"var(--good)"}},ger.coverage_pct+"%"),h("small",null,"coberta")),
+              h("div",null,h("b",{style:{color:(ger.gaps&&ger.gaps.length)?"var(--bad)":"var(--good)"}},String((ger.gaps||[]).length)),h("small",null,"buraco(s)")),
+              h("div",null,h("b",{style:{color:"var(--info)"}},(ger.balance_stddev_h||0)+"h"),h("small",null,"equilíbrio σ")),
+              h("div",null,h("b",{style:{color:"var(--violet)"}},String((ger.assignments||[]).length)),h("small",null,"turnos")))),
+          (ger.gaps&&ger.gaps.length)? h("div",{className:"warnbox"}, "Sem cobertura: "+ger.gaps.map(function(x){return x.day+"/"+x.shift;}).join(", ")+" — nenhum elegível sem violar o descanso.") : null,
+          h("div",{className:"expl"}, (ger.explanations||[]).map(function(x,i){return h("div",{key:i},"• "+x);})),
+          h("button",{className:"big",onClick:function(){gerar(true);}}, Icon("check",{width:"17px",height:"17px",stroke:"#fff",fill:"none",strokeWidth:2.4}), "Publicar escala"),
+          h("button",{className:"ghost",onClick:function(){setGer(null);}},"Descartar")
+        ) : h("div",null,
+          h("select",{className:"usel",value:unit,onChange:function(e){setUnit(e.target.value);setGer(null);}},
+            data.units.map(function(x){return h("option",{key:x.id,value:x.id},x.name);})),
+          h("button",{className:"big",onClick:function(){gerar(false);}}, Icon("spark",{width:"17px",height:"17px",stroke:"#fff",fill:"none",strokeWidth:2}), "Gerar com o motor"),
+          h("div",{className:"expl"},"O motor respeita descanso de 11h entre turnos e 35h semanais, teto de horas e no máximo 6 dias seguidos. Nada é publicado sem a sua confirmação.")
+        ))
+    ));
+
+    if(view==="aprovar") return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
+      Voltar(),
+      h("div",{className:"hello"},"Pendências"),
+      h("div",{className:"subhello"}, pend? pend+" aguardando você" : "Tudo em dia"),
+      data.swaps.map(function(s){ return h("div",{className:"pend glass",key:s.id},
+        h("div",{className:"ph"}, Icon("swap",{stroke:"var(--info)"}), h("b",null,"Troca de turno")),
+        h("p",null,(data.nm[s.requester_id]||"—")+" ⇄ "+(data.nm[s.peer_id]||"—")),
+        h("div",{className:"mini2"},
+          h("button",{className:"mok",onClick:function(){aprovarSwap(s.id,true);}},"Aprovar"),
+          h("button",{className:"mno",onClick:function(){aprovarSwap(s.id,false);}},"Recusar"))); }),
+      data.corrs.map(function(c){ return h("div",{className:"pend glass",key:c.id},
+        h("div",{className:"ph"}, Icon("clock",{stroke:"var(--warn)"}), h("b",null,"Correção de ponto")),
+        h("p",null,(data.nm[c.requested_by]||"—")+" · solicitada"),
+        h("div",{className:"mini2"},
+          h("button",{className:"mok",onClick:function(){aprovarCorr(c.id,true);}},"Aprovar"),
+          h("button",{className:"mno",onClick:function(){aprovarCorr(c.id,false);}},"Recusar"))); }),
+      pend? null : h("div",{className:"empty"},"Nenhuma pendência.")
+    ));
+
+    if(view==="live"){
+      var work={}; data.ponto.forEach(function(p){ if(p.kind==="in") work[p.employee_id]=1; if(p.kind==="out") delete work[p.employee_id]; });
+      return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
+        Voltar(),
+        h("div",{className:"hello"},"Ao vivo"),
+        h("div",{className:"subhello"}, Object.keys(work).length+" trabalhando agora"),
+        h("div",{className:"card glass",style:{padding:"4px 14px"}}, data.emps.length? data.emps.map(function(e,i){
+          var s=(e.status==="ferias")?["Férias","var(--faint)"]:(e.status!=="ativo"?[e.status,"var(--faint)"]:(work[e.id]?["Trabalhando","var(--good)"]:["Sem ponto hoje","var(--bad)"]));
+          return h("div",{className:"row",key:i}, h("div",{className:"di"},h("b",null,e.full_name),h("span",null,e.role_title||"—")),
+            h("span",{className:"chip",style:{color:s[1],background:"color-mix(in srgb,"+s[1]+" 15%,transparent)"}},s[0])); }) : h("div",{className:"empty"},"Sem funcionários."))
+      ));
+    }
+
+    if(view==="escala") return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
+      Voltar(),
+      h("div",{className:"hello"},"Escala"),
+      h("div",{className:"subhello"},"Publicada · somente leitura aqui"),
+      h("div",{className:"card glass",style:{padding:"4px 14px"}}, data.assigns.length? data.assigns.slice(0,40).map(function(a,i){
+        var s=SL[a.shift]||[a.shift,a.shift,"cM"];
+        return h("div",{className:"row",key:i}, h("div",{className:"db"},h("b",null,a.work_date.slice(8)),h("small",null,a.work_date.slice(5,7))),
+          h("div",{className:"di"},h("b",null,data.nm[a.employee_id]||"— vago —"),h("span",null,s[0])),
+          h("span",{className:"chip "+s[2]},s[1])); }) : h("div",{className:"empty"},"Sem escala publicada.")),
+      h("div",{className:"expl",style:{marginTop:"10px"}},"Para editar turno a turno, use o sistema completo no computador.")
+    ));
+
+    return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
+      h("div",{className:"hello"},"Olá, ",h("span",null,(props.user.email||"").split("@")[0])),
+      h("div",{className:"subhello"}, unitName),
+      h("div",{className:"st2"},
+        h("div",{className:"stat glass"},h("div",{className:"v",style:{color:cob==null?"var(--faint)":(cob>=90?"var(--good)":"var(--warn)")}}, cob==null?"—":cob+"%"),h("div",{className:"k"},"Cobertura hoje")),
+        h("div",{className:"stat glass"},h("div",{className:"v",style:{color:pend?"var(--warn)":"var(--good)"}},String(pend)),h("div",{className:"k"},"Pendências"))),
+      h("button",{className:"big",onClick:function(){setView("gerar");}}, Icon("spark",{width:"18px",height:"18px",stroke:"#fff",fill:"none",strokeWidth:2}), "Gerar escala"),
+      h("button",{className:"act glass",onClick:function(){setView("aprovar");}}, Icon("check"), "Aprovar", pend? h("span",{className:"cnt"},String(pend)):null),
+      h("button",{className:"act glass",onClick:function(){setView("live");}}, Icon("live"), "Ao vivo"),
+      h("button",{className:"act glass",onClick:function(){setView("escala");}}, Icon("cal"), "Escala da semana"),
+      h("div",{className:"full",onClick:irDesktop}, Icon("desk"), "Sistema completo →")
+    ));
+  }
+
+  function App(){
+    var u=useState(null),user=u[0],setUser=u[1];
+    useEffect(function(){ sb.auth.getSession().then(function(r){ if(r.data&&r.data.session) setUser(r.data.session.user); }); },[]);
+    if(!user) return h(Login,{onLogin:setUser});
+    return h(Gestor,{user:user,onLogout:function(){setUser(null);}});
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+})();
+</script>
+</body>
+</html>
