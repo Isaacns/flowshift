@@ -191,7 +191,10 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
       h("div",{className:"hdr"}, h("img",{src:CUBE,alt:"Vizio"}),
         h("div",{className:"t"}, h("b",null,"FlowShift"), h("small",null,"by ",h("b",null,"Vizio"))),
         h("div",{className:"bell",title:"Notificações",style:{marginLeft:"auto"},onClick:openBell}, Icon("bell"), unread? h("span",{className:"badge"}, unread>9?"9+":unread) : null),
-        h("div",{className:"me",title:"Sair",style:{marginLeft:"9px"},onClick:function(){sb.auth.signOut();props.onLogout();}}, initials(me.full_name))),
+        (function(){ var fu=((props.user&&props.user.user_metadata)||{}).avatar_url||"";
+          function sairP(){ sb.auth.signOut(); props.onLogout(); }
+          return fu? h("img",{className:"me",src:fu,alt:"",title:"Sair",style:{marginLeft:"9px",objectFit:"cover"},onClick:sairP})
+                   : h("div",{className:"me",title:"Sair",style:{marginLeft:"9px"},onClick:sairP}, initials(me.full_name)); })()),
       showN? h("div",{className:"npanel phone glass"},
         h("div",{className:"nhd"}, Icon("bell"), h("b",null,"Notificações"), h("div",{className:"x",onClick:function(){setShowN(false);}},"✕")),
         h("div",{className:"nbody"}, (data.notifs||[]).length? data.notifs.map(function(n,i){
