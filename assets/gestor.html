@@ -157,14 +157,18 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
     var cob=hojeAs.length? Math.round(hojeAs.filter(function(a){return !!a.employee_id;}).length/hojeAs.length*100) : null;
     var unitName=(data.units.filter(function(x){return x.id===unit;})[0]||{}).name||"—";
 
-    function gerar(commit){
+    function gerar(commit,replace){
       if(!unit){toast("Selecione a unidade");return;}
       setBusy(true); if(!commit) setGer(null);
-      sb.functions.invoke("flowshift-gerar-escala",{body:{unit_id:unit,days:7,demand:{M:1,N:1},commit:commit===true}}).then(function(res){
+      sb.functions.invoke("flowshift-gerar-escala",{body:{unit_id:unit,days:7,demand:{M:1,N:1},commit:commit===true,replace:replace===true}}).then(function(res){
         setBusy(false); var x=(res&&res.data)||{};
-        if(!x.ok){ toast("Erro: "+(x.error||"motor")); return; }
-        if(commit){ toast("Escala publicada · "+x.coverage_pct+"% coberta"); setGer(null); setView("home"); load(); }
-        else { setGer(x); }
+        if(x.conflict){ setGer(x); toast("Já existe escala nesse período"); return; }
+        if(!x.ok){ toast("Erro: "+(x.error||(res&&res.error&&res.error.message)||"motor")); return; }
+        if(commit){
+          if(!x.committed){ toast("Nada foi gravado — tente de novo"); return; }
+          toast("Escala publicada · "+x.coverage_pct+"% coberta"+(x.replaced?" · anterior substituída":""));
+          setGer(null); setView("home"); load();
+        } else setGer(x);
       }).catch(function(){ setBusy(false); toast("Falha ao chamar o motor"); });
     }
     function aprovarSwap(id,ok){
@@ -176,9 +180,13 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
         if(r&&r.error) toast("Erro: "+r.error.message); else {toast(ok?"Correção aprovada":"Correção recusada");load();}});
     }
 
+    var md=(props.user&&props.user.user_metadata)||{};
+    var foto=md.avatar_url||"", nome=md.full_name||(props.user.email||"").split("@")[0];
+    function sair(){ sb.auth.signOut(); props.onLogout(); }
     var HDR=h("div",{className:"hdr"}, h("img",{src:CUBE,alt:"Vizio"}),
       h("div",{className:"t"}, h("b",null,"FlowShift"), h("small",null,"by ",h("b",null,"Vizio")," · Gestor")),
-      h("div",{className:"me",title:"Sair",onClick:function(){sb.auth.signOut();props.onLogout();}}, initials(props.user.email)));
+      foto? h("img",{className:"me",src:foto,alt:"",title:"Sair",style:{objectFit:"cover"},onClick:sair})
+          : h("div",{className:"me",title:"Sair",onClick:sair}, initials(nome)));
 
     function Voltar(){ return h("button",{className:"bk",onClick:function(){setView("home");},style:{marginBottom:"12px"}}, Icon("back",{width:"15px",height:"15px",stroke:"currentColor",fill:"none",strokeWidth:2}), "Voltar"); }
 
@@ -194,9 +202,12 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
               h("div",null,h("b",{style:{color:(ger.gaps&&ger.gaps.length)?"var(--bad)":"var(--good)"}},String((ger.gaps||[]).length)),h("small",null,"buraco(s)")),
               h("div",null,h("b",{style:{color:"var(--info)"}},(ger.balance_stddev_h||0)+"h"),h("small",null,"equilíbrio σ")),
               h("div",null,h("b",{style:{color:"var(--violet)"}},String((ger.assignments||[]).length)),h("small",null,"turnos")))),
-          (ger.gaps&&ger.gaps.length)? h("div",{className:"warnbox"}, "Sem cobertura: "+ger.gaps.map(function(x){return x.day+"/"+x.shift;}).join(", ")+" — nenhum elegível sem violar o descanso.") : null,
+          (ger.gaps&&ger.gaps.length)? h("div",{className:"warnbox"}, "Sem cobertura: "+ger.gaps.map(function(x){return x.day.slice(8)+"/"+x.day.slice(5,7)+" · "+x.shift;}).join(", ")+" — nenhum elegível sem violar o descanso.") : null,
+          ger.conflict? h("div",{className:"warnbox",style:{background:"color-mix(in srgb,var(--warn) 12%,transparent)",color:"var(--warn)"}}, ger.error) : null,
           h("div",{className:"expl"}, (ger.explanations||[]).map(function(x,i){return h("div",{key:i},"• "+x);})),
-          h("button",{className:"big",onClick:function(){gerar(true);}}, Icon("check",{width:"17px",height:"17px",stroke:"#fff",fill:"none",strokeWidth:2.4}), "Publicar escala"),
+          ger.conflict
+            ? h("button",{className:"big",style:{background:"linear-gradient(135deg,#B45309,var(--warn))"},onClick:function(){gerar(true,true);}}, Icon("check",{width:"17px",height:"17px",stroke:"#fff",fill:"none",strokeWidth:2.4}), "Substituir escala existente")
+            : h("button",{className:"big",onClick:function(){gerar(true);}}, Icon("check",{width:"17px",height:"17px",stroke:"#fff",fill:"none",strokeWidth:2.4}), "Publicar escala"),
           h("button",{className:"ghost",onClick:function(){setGer(null);}},"Descartar")
         ) : h("div",null,
           h("select",{className:"usel",value:unit,onChange:function(e){setUnit(e.target.value);setGer(null);}},
@@ -251,7 +262,7 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
     ));
 
     return h("div",{style:{display:"contents"}}, HDR, h("div",{className:"scroll"},
-      h("div",{className:"hello"},"Olá, ",h("span",null,(props.user.email||"").split("@")[0])),
+      h("div",{className:"hello"},"Olá, ",h("span",null,(nome||"").split(" ")[0])),
       h("div",{className:"subhello"}, unitName),
       h("div",{className:"st2"},
         h("div",{className:"stat glass"},h("div",{className:"v",style:{color:cob==null?"var(--faint)":(cob>=90?"var(--good)":"var(--warn)")}}, cob==null?"—":cob+"%"),h("div",{className:"k"},"Cobertura hoje")),
