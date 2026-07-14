@@ -555,14 +555,14 @@ window.FLOWSHIFT_CONFIG = {
     return {byDay:byDay, prev:prev};
   }
   function nightHours(startISO,endISO){ if(!startISO||!endISO) return 0; var OFF=-3*3600000; var a=new Date(startISO).getTime()+OFF, b=new Date(endISO).getTime()+OFF; if(b<=a) return 0; var dayMs=86400000, total=0, sd=Math.floor(a/dayMs)-1, ed=Math.floor(b/dayMs)+1; for(var d=sd; d<=ed; d++){ var ws=d*dayMs+22*3600000, we=(d+1)*dayMs+5*3600000, s=Math.max(a,ws), e=Math.min(b,we); if(e>s) total+=(e-s); } return total/3600000; }
-  function empRows(emp, comp){
+  function empRows(emp, comp, hol){
     var bd=comp.byDay[emp.id]||{}, pv=comp.prev[emp.id]||{}, days={};
     Object.keys(bd).forEach(function(d){days[d]=1;}); Object.keys(pv).forEach(function(d){days[d]=1;});
     var rows=Object.keys(days).sort().map(function(d){ var m=bd[d]||{}; var real=dayReal(m); var previsto=(pv[d]!=null)?pv[d]:null;
       var saldo=(real!=null&&previsto!=null)?real-previsto:((real!=null&&previsto==null)?real:null);
       var night=(m.in&&m.out)?Math.max(0, nightHours(m.in,m.out)-((m.break_start&&m.break_end)?nightHours(m.break_start,m.break_end):0)):0;
       var extra=(real!=null&&previsto!=null)?Math.max(0, real-previsto):0;
-      var dow=new Date(d+"T12:00:00").getDay(), he100=(dow===0)?extra:0, he50=(dow===0)?0:extra;
+      var dow=new Date(d+"T12:00:00").getDay(), isHol=!!(hol&&hol[d]), dom=(dow===0||isHol), he100=dom?extra:0, he50=dom?0:extra;
       return {date:d, previsto:previsto, in:m.in, bs:m.break_start, be:m.break_end, out:m.out, real:real, saldo:saldo, night:night, he50:he50, he100:he100}; });
     var tp=0,tr=0,ts=0,dias=0,tn=0,t5=0,t1=0; rows.forEach(function(r){ if(r.previsto!=null)tp+=r.previsto; if(r.real!=null){tr+=r.real;dias++;} if(r.saldo!=null)ts+=r.saldo; tn+=r.night; t5+=r.he50; t1+=r.he100; });
     return {rows:rows, prev:tp, real:tr, saldo:ts, dias:dias, night:tn, he50:t5, he100:t1};
@@ -630,8 +630,10 @@ window.FLOWSHIFT_CONFIG = {
       if(empId!=="all"){ qe=qe.eq("employee_id",empId); qa=qa.eq("employee_id",empId); }
       Promise.all([qe,qa]).then(function(x){ setBusy(false);
         var comp=repCompute((x[0]&&x[0].data)||[], (x[1]&&x[1].data)||[]);
+        var uCity=((store&&store.units)||[]).filter(function(u){return u.id===props.unit;})[0]; uCity=uCity&&uCity.city;
+        var hol={}; ((store&&store.holidays)||[]).forEach(function(hd){ if(hd.optional) return; if(hd.layer==="municipal"){ if(uCity && String(hd.region)===String(uCity)) hol[hd.day]=1; } else { hol[hd.day]=1; } });
         var pool=(empId==="all")?emps:emps.filter(function(em){return em.id===empId;});
-        var per=pool.map(function(em){ return {emp:em, r:empRows(em,comp)}; }).filter(function(p){ return p.r.rows.length>0; });
+        var per=pool.map(function(em){ return {emp:em, r:empRows(em,comp,hol)}; }).filter(function(p){ return p.r.rows.length>0; });
         setRes({month:month, per:per, single:empId!=="all"});
         if(!per.length) toast("Sem marcações/escala nesse mês");
       }).catch(function(){ setBusy(false); toast("Falha ao consultar dados"); });
@@ -682,7 +684,10 @@ window.FLOWSHIFT_CONFIG = {
             h("div",{onClick:function(){props.setTheme("dark");},style:{flex:1,height:"44px",borderRadius:"11px",background:"#070A12",border:"1px solid var(--line)",cursor:"pointer",display:"grid",placeItems:"center",color:"#4F8BFF",fontWeight:800,fontSize:"11px"}},"DARK"),
             h("div",{onClick:function(){props.setTheme("light");},style:{flex:1,height:"44px",borderRadius:"11px",background:"#fff",border:"1px solid var(--line)",cursor:"pointer",display:"grid",placeItems:"center",color:"#1C64F0",fontWeight:800,fontSize:"11px"}},"LIGHT"))
         ),
-        h("div",{className:"panel glass"}, h("div",{className:"ph"},h("h3",null,"Feriados")), h("p",{style:{color:"var(--muted)",fontSize:"12.5px",lineHeight:1.6}},"Camadas nacional → BA → município (Salvador / Camaçari / Mata de São João). Ponto facultativo configurável."))
+        h("div",{className:"panel glass"}, h("div",{className:"ph"},h("h3",null,"Feriados"), h("span",{className:"tag ai"}, (((props.store&&props.store.holidays)||[]).length)+" datas")),
+          (((props.store&&props.store.holidays)||[]).length)
+            ? h("div",{style:{maxHeight:"200px",overflow:"auto",marginTop:"4px"}}, ((props.store&&props.store.holidays)||[]).map(function(hd,i){ return h("div",{key:i,style:{display:"flex",justifyContent:"space-between",gap:"8px",fontSize:"12px",padding:"5px 0",borderTop:i?"1px solid var(--line)":"none"}}, h("span",null, hd.day.slice(8)+"/"+hd.day.slice(5,7)+" · "+hd.name), h("span",{style:{color:hd.optional?"var(--warn)":"var(--good)",fontWeight:700,whiteSpace:"nowrap"}}, hd.optional?"facultativo":(hd.layer==="municipal"?"municipal":(hd.layer==="state"?"estadual":"feriado")))); }))
+            : h("p",{style:{color:"var(--muted)",fontSize:"12.5px",lineHeight:1.6}},"Nacional → BA → município (Salvador / Camaçari / Mata de São João). Facultativos não contam como HE 100%."))
       )
     );
   }
@@ -837,16 +842,18 @@ window.FLOWSHIFT_CONFIG = {
     useEffect(function(){
       if(user && !DEMO && sb){
         Promise.all([
-          sb.from("units").select("id,name"),
+          sb.from("units").select("id,name,city_ibge"),
           sb.from("employees").select("id,full_name,role_title,contract_type,status"),
           sb.from("time_entries").select("nsr,kind,ts,employee_id").order("ts",{ascending:true}),
           sb.from("hour_bank_ledger").select("employee_id,delta"),
           sb.from("masters").select("user_id"),
           sb.from("assignments").select("employee_id,work_date,shift,hours").order("work_date",{ascending:false}).limit(12),
           sb.from("swap_requests").select("id,status,requester_id,peer_id").order("created_at",{ascending:false}).limit(8),
-          sb.from("time_corrections").select("id,status,requested_by").order("created_at",{ascending:false}).limit(8)
+          sb.from("time_corrections").select("id,status,requested_by").order("created_at",{ascending:false}).limit(8),
+          sb.from("holidays").select("day,name,layer,region,optional").order("day",{ascending:true})
         ]).then(function(res){
-          var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name};});
+          var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name,city:u.city_ibge};});
+          var holidays=(res[8]&&res[8].data)||[];
           var emps=res[1].data||[];
           var ponto=res[2].data||[];
           var ledger=res[3].data||[];
@@ -872,7 +879,7 @@ window.FLOWSHIFT_CONFIG = {
             ["Unidades",String(units.length),"","var(--violet)","flat","ativas",Math.min(100,units.length*20)],
             ["Escala","publicada","","var(--good)","flat","semana atual",100]
           ];
-          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
+          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, holidays:holidays, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
     },[user]);
@@ -883,7 +890,22 @@ window.FLOWSHIFT_CONFIG = {
       window.addEventListener("mousemove",mm); loop();
       return function(){window.removeEventListener("mousemove",mm);cancelAnimationFrame(raf);};
     },[]);
-    function logout(){ try{ if(sb) sb.auth.signOut(); }catch(e){} setStore(null); setUser(null); }
+    useEffect(function(){
+      if(!user||DEMO||!sb) return;
+      var forced=false; try{ forced=sessionStorage.getItem("fs_force_desktop")==="1"; }catch(e){}
+      if(forced) return;
+      var small=Math.min(window.innerWidth,window.innerHeight)<620 || /Android|iPhone|iPod|Windows Phone/i.test(navigator.userAgent||"");
+      if(!small) return;
+      sb.auth.getUser().then(function(ur){
+        var uid=ur&&ur.data&&ur.data.user&&ur.data.user.id; if(!uid) return;
+        return sb.from("tenant_memberships").select("role").eq("user_id",uid).maybeSingle().then(function(m){
+          var role=(m.data&&m.data.role)||"";
+          if(["admin","supervisor","coordinator"].indexOf(role)>=0) location.href="assets/gestor.html";
+          else if(role==="employee") location.href="assets/portal.html";
+        });
+      }).catch(function(){});
+    },[user]);
+    function logout(){ try{ if(sb) sb.auth.signOut(); sessionStorage.removeItem("fs_force_desktop"); }catch(e){} setStore(null); setUser(null); }
     if(!user) return h(Login,{onLogin:setUser});
     return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,onLogout:logout});
   }
