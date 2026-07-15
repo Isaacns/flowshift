@@ -22,14 +22,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .phone{position:relative;z-index:1;width:100%;max-width:420px;height:min(880px,95vh);border-radius:32px;overflow:hidden;display:flex;flex-direction:column}
 .login{display:grid;place-items:center;flex:1;padding:26px}
 .login .card{width:100%;max-width:360px;border-radius:22px;padding:30px 26px;text-align:center}
-.logo{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 20px rgba(79,139,255,.55));margin:0 auto 6px;display:block}
+/* ===== AURA — marca viva (padrão INPERSON/VIZIO) ===== */
+@keyframes fs-breathe-soft{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+@keyframes fs-glow{0%,100%{filter:drop-shadow(0 0 5px rgba(79,139,255,.45))}50%{filter:drop-shadow(0 0 20px rgba(79,139,255,.95))}}
+@keyframes fs-aura-breathe{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.95;transform:translate(-50%,-50%) scale(1.14)}}
+.logo-hero{position:relative;display:grid;place-items:center;margin:0 auto 6px}
+.logo-hero::before{content:"";position:absolute;left:50%;top:50%;width:210px;height:210px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(79,139,255,.22),rgba(28,100,240,.05) 55%,transparent 70%);filter:blur(12px);z-index:0;pointer-events:none}
+.logo{position:relative;z-index:1;width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 20px rgba(79,139,255,.55));display:block;transform-origin:center}
+@media (prefers-reduced-motion:no-preference){
+  .logo-hero::before{animation:fs-aura-breathe 5s ease-in-out infinite}
+  .logo{animation:fs-glow 4.2s ease-in-out infinite,fs-breathe-soft 5.5s ease-in-out infinite}
+  .hdr img.cube{animation:fs-breathe-soft 6s ease-in-out infinite,fs-glow 5s ease-in-out infinite}
+}
 .login h1{font-size:22px;font-weight:800;margin-top:8px}.login h1 span{color:var(--primary-2)}
 .login .sub{color:var(--muted);font-size:12px;margin:4px 0 20px}
 .inp{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:12px 13px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:11px}
 .btn{width:100%;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border:0;border-radius:12px;padding:13px;font-family:var(--font);font-weight:800;font-size:14px;cursor:pointer;box-shadow:var(--glow)}
 .err{color:var(--bad);font-size:12px;margin-top:10px;min-height:15px}
 .hdr{padding:15px 17px 12px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--line)}
-.hdr img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(28,100,240,.5))}
+.hdr img.cube{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(28,100,240,.5));transform-origin:center}
 .hdr .t b{font-size:14.5px;display:block;line-height:1}.hdr .t small{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--faint)}
 .hdr .t small b{color:var(--primary-2);display:inline;font-size:9px}
 .hdr .me{margin-left:auto;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--vizio),var(--violet));display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px;box-shadow:var(--glow);cursor:pointer}
@@ -108,7 +119,7 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
         if(r.error){setErr(r.error.message||"Falha no login");return;} props.onLogin(r.data.user);});
     }
     return h("div",{className:"login"}, h("form",{className:"card glass",onSubmit:entrar},
-      h("img",{className:"logo",src:CUBE,alt:"Vizio"}),
+      h("div",{className:"logo-hero"}, h("img",{className:"logo",src:CUBE,alt:"Vizio"})),
       h("h1",null,"FlowShift ",h("span",null,"Gestor")),
       h("div",{className:"sub"},"Gestão rápida no celular"),
       h("input",{className:"inp",type:"text",placeholder:"E-mail",value:email,onChange:function(x){setEmail(x.target.value);}}),
@@ -183,7 +194,7 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
     var md=(props.user&&props.user.user_metadata)||{};
     var foto=md.avatar_url||"", nome=md.full_name||(props.user.email||"").split("@")[0];
     function sair(){ sb.auth.signOut(); props.onLogout(); }
-    var HDR=h("div",{className:"hdr"}, h("img",{src:CUBE,alt:"Vizio"}),
+    var HDR=h("div",{className:"hdr"}, h("img",{className:"cube",src:CUBE,alt:"Vizio"}),
       h("div",{className:"t"}, h("b",null,"FlowShift"), h("small",null,"by ",h("b",null,"Vizio")," · Gestor")),
       foto? h("img",{className:"me",src:foto,alt:"",title:"Sair",style:{objectFit:"cover"},onClick:sair})
           : h("div",{className:"me",title:"Sair",onClick:sair}, initials(nome)));
