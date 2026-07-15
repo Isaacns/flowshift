@@ -56,10 +56,19 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 /* ===== LOGIN ===== */
 .login{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:24px}
 .login .card{width:100%;max-width:410px;border-radius:var(--r-lg);padding:34px 30px}
-.logo-badge{margin:0 auto 8px;display:grid;place-items:center;background:none;box-shadow:none;border-radius:0}
-.logo-badge img{width:104px;height:104px;object-fit:contain;filter:drop-shadow(0 6px 22px rgba(79,139,255,.5))}
-@media (prefers-reduced-motion:no-preference){.breathe{animation:br 4.5s ease-in-out infinite}}
-@keyframes br{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:.9}}
+/* ===== AURA — marca viva (padrão INPERSON/VIZIO) =====
+   Mesmos tempos e curvas do Sistema INPERSON (ip-breathe-soft / ip-glow / ip-aura-breathe),
+   com a cor adaptada ao Azul VIZIO. Nenhum elemento de marca fica estático. */
+@keyframes fs-breathe-soft{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+@keyframes fs-glow{0%,100%{filter:drop-shadow(0 0 5px rgba(79,139,255,.45))}50%{filter:drop-shadow(0 0 20px rgba(79,139,255,.95))}}
+@keyframes fs-aura-breathe{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.95;transform:translate(-50%,-50%) scale(1.14)}}
+.logo-badge{position:relative;margin:0 auto 8px;display:grid;place-items:center;background:none;box-shadow:none;border-radius:0}
+.logo-badge::before{content:"";position:absolute;left:50%;top:50%;width:240px;height:240px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(79,139,255,.22),rgba(28,100,240,.05) 55%,transparent 70%);filter:blur(12px);z-index:0;pointer-events:none}
+.logo-badge img{position:relative;z-index:1;width:104px;height:104px;object-fit:contain;filter:drop-shadow(0 6px 22px rgba(79,139,255,.5));transform-origin:center}
+@media (prefers-reduced-motion:no-preference){
+  .logo-badge::before{animation:fs-aura-breathe 5s ease-in-out infinite}
+  .logo-badge img{animation:fs-glow 4.2s ease-in-out infinite,fs-breathe-soft 5.5s ease-in-out infinite}
+}
 .login h1{text-align:center;font-size:26px;font-weight:800;margin-top:14px}
 .login h1 .by{color:var(--primary-2)}
 .login .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:4px 0 22px}
@@ -81,8 +90,8 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .app{position:relative;z-index:1;display:grid;grid-template-columns:250px 1fr;height:100vh}
 .side{margin:12px 0 12px 12px;border-radius:var(--r-lg);display:flex;flex-direction:column;padding:16px 12px;gap:5px;overflow:hidden}
 .brand{display:flex;align-items:center;gap:11px;padding:6px 6px 14px}
-.brand img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 4px 14px rgba(28,100,240,.55));animation:bob 6s ease-in-out infinite}
-@keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(-3deg)}}
+.brand img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 4px 14px rgba(28,100,240,.55));transform-origin:center}
+@media (prefers-reduced-motion:no-preference){.brand img{animation:fs-breathe-soft 6s ease-in-out infinite,fs-glow 5s ease-in-out infinite}}
 .brand b{font-size:17px;font-weight:800;display:block;line-height:1}
 .brand small{color:var(--faint);font-size:10px;letter-spacing:2px;text-transform:uppercase}
 .brand small b{color:var(--primary-2);display:inline;font-size:10px}
@@ -211,6 +220,82 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .backbtn:hover{color:var(--primary-2);transform:translateX(-2px)}
 .backbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid3{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{display:none}}
+
+/* ==========================================================================
+   PADRÃO MOBILE INPERSON/VIZIO — mesmo aplicado no VIZIO Money e no ISO.
+   O menu tem 6–9 itens, então a barra leva os 4 principais + "Mais", que
+   abre a folha com todos. Antes desta revisão a sidebar sumia em 1100px
+   e o app ficava SEM navegação nenhuma no celular.
+   Aqui o container de rolagem é .main (body é overflow:hidden).
+   ========================================================================== */
+
+/* 1. Nada rola de lado dentro do conteúdo */
+.main{overflow-x:clip}
+
+/* 2. Barra inferior — aparece exatamente onde a sidebar some (1100px) */
+.fs-bnav{display:none}
+@media(max-width:1100px){
+  .main{padding-bottom:calc(96px + env(safe-area-inset-bottom));
+    padding-left:calc(14px + env(safe-area-inset-left));
+    padding-right:calc(14px + env(safe-area-inset-right))}
+  .fs-bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
+    background:rgba(10,14,26,.94);backdrop-filter:blur(14px);
+    border-top:1px solid var(--glass-brd);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .fs-bnav .bi{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;min-height:52px;background:none;border:none;color:var(--faint);
+    font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;position:relative;padding:4px 2px}
+  .fs-bnav .bi svg{width:19px;height:19px}
+  .fs-bnav .bi.on{color:var(--primary-2,var(--primary))}
+  .fs-bnav .bi.on::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+    width:24px;height:3px;border-radius:0 0 3px 3px;
+    background:linear-gradient(90deg,var(--primary),var(--primary-2))}
+}
+
+/* 3. Folha "Mais": todos os destinos de uma vez */
+.fs-sheet-bg{position:fixed;inset:0;z-index:46;background:rgba(2,6,14,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end}
+.fs-sheet{width:100%;background:var(--bg2,#0d1424);border-top:1px solid var(--glass-brd);
+  border-radius:20px 20px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom));
+  box-shadow:0 -20px 60px rgba(0,0,0,.6);max-height:82vh;overflow:auto}
+.fs-sheet-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fs-sheet-h b{font-size:15px}
+.fs-sheet-x{width:38px;height:38px;border-radius:10px;border:1px solid var(--glass-brd);
+  background:var(--glass);color:var(--text);cursor:pointer;font-size:15px}
+.fs-sheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fs-sheet-i{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  min-height:80px;padding:10px 6px;border-radius:14px;border:1px solid var(--glass-brd);
+  background:var(--glass);color:var(--faint);font-family:inherit;font-size:11px;
+  font-weight:700;text-align:center;cursor:pointer;line-height:1.25;position:relative}
+.fs-sheet-i svg{width:21px;height:21px}
+.fs-sheet-i.on{border-color:var(--primary);color:var(--text)}
+.fs-sheet-i .plan{position:absolute;top:5px;right:5px;font-size:8px;font-weight:800;
+  padding:1px 4px;border-radius:5px;background:var(--glass-2);color:var(--faint)}
+
+/* 4. Alvos de toque >= 44px (trava dupla: dedo em qualquer largura + híbridos) */
+@media (pointer:coarse),(max-width:1100px){
+  .btn{min-height:44px}
+  .btn.sm{min-height:44px;padding:11px 16px}
+}
+
+/* 5. 16px: abaixo disso o iOS dá zoom ao focar o campo */
+@media (pointer:coarse),(max-width:1100px){
+  input,select,textarea{font-size:16px}
+}
+
+/* 6. Tabela vira LISTA — tabela de 6 colunas não cabe em 360px */
+@media(max-width:560px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .tbl{display:block;width:100%}
+  .tbl thead{display:none}
+  .tbl tbody,.tbl tr{display:block;width:100%}
+  .tbl tr{padding:12px 0;border-bottom:1px solid var(--line)}
+  .tbl tr:last-child{border-bottom:none}
+  .tbl tr:hover td{background:none}
+  .tbl td{border:none;padding:3px 0;overflow-wrap:anywhere}
+  .tbl td[data-l]{display:flex;justify-content:space-between;align-items:baseline;gap:12px;text-align:right}
+  .tbl td[data-l]::before{content:attr(data-l);flex:none;font-size:10.5px;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--faint);text-align:left;font-weight:700}
+}
 
 </style>
 </head>
@@ -744,10 +829,16 @@ window.FLOWSHIFT_CONFIG = {
   var NAV=[["dash","Dashboard","grid"],["func","Funcionários","users"],["esc","Escalas","cal"],["ponto","Controle de Ponto","clock","PRO"],["banco","Banco de Horas","scale","PRO"],["rel","Relatórios","doc"]];
   var NAV2=[["ia","IA — Supervisor","spark","ENT"],["cfg","Configurações","gear"]];
 
+  /* Barra inferior do celular: 4 principais + "Mais" (o menu tem 6–9 itens).
+     Padrão INPERSON/VIZIO — ver VIZIO Money e Qualidade ISO. */
+  var FS_BNAV_PRIN=["dash","func","esc","ponto"];
   function Shell(props){
     var v=useState("dash"),view=v[0],setView=v[1];
     var hh=useState([]),hist=hh[0],setHist=hh[1];
-    function nav(x){ if(x!==view){ setHist(hist.concat([view])); setView(x); } }
+    /* hook da navegação mobile fica AQUI, com os demais — nunca depois de um
+       return condicional (muda a contagem de hooks e o React derruba o app). */
+    var mo=useState(false),mOpen=mo[0],setMOpen=mo[1];
+    function nav(x){ if(x!==view){ setHist(hist.concat([view])); setView(x); } setMOpen(false); }
     function goBack(){ if(hist.length){ setView(hist[hist.length-1]); setHist(hist.slice(0,-1)); } else { setView("dash"); } }
     var units=(props.store&&props.store.units&&props.store.units.length)?props.store.units:DATA.units;
     var u=useState(units[0]?units[0].id:"salvador"),unit=u[0],setUnit=u[1];
@@ -771,7 +862,25 @@ window.FLOWSHIFT_CONFIG = {
       ),
       h("main",{className:"main"},
         view!=="dash" ? h("button",{className:"backbtn glass",onClick:goBack}, Icon("back"), h("span",null,"Voltar")) : null,
-        h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store}))
+        h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store})),
+      (function(){
+        var extras=((DEMO||(props.store&&props.store.isMaster))?[["usuarios","Usuários","users"]]:[]).concat(NAV2);
+        var todos=NAV.concat(extras);
+        var prim=FS_BNAV_PRIN.map(function(k){ return todos.filter(function(n){ return n[0]===k; })[0]; }).filter(Boolean);
+        return h(React.Fragment,null,
+          h("nav",{className:"fs-bnav"},
+            prim.map(function(n){ return h("button",{key:n[0],className:"bi"+(view===n[0]?" on":""),onClick:function(){ nav(n[0]); }},
+              Icon(n[2]), h("span",null,n[1].split(" ")[0])); }),
+            h("button",{className:"bi"+(mOpen?" on":""),onClick:function(){ setMOpen(!mOpen); }},
+              Icon("grid"), h("span",null,"Mais"))),
+          mOpen?h("div",{className:"fs-sheet-bg",onClick:function(e){ if(e.target===e.currentTarget) setMOpen(false); }},
+            h("div",{className:"fs-sheet"},
+              h("div",{className:"fs-sheet-h"}, h("b",null,"Navegação"),
+                h("button",{className:"fs-sheet-x",onClick:function(){ setMOpen(false); }},"✕")),
+              h("div",{className:"fs-sheet-grid"}, todos.map(function(n){ return h("button",{key:n[0],className:"fs-sheet-i"+(view===n[0]?" on":""),onClick:function(){ nav(n[0]); }},
+                Icon(n[2]), h("span",null,n[1]), n[3]?h("span",{className:"plan"},n[3]):null); })))
+          ):null);
+      })()
     );
   }
 
