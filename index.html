@@ -282,20 +282,25 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
   input,select,textarea{font-size:16px}
 }
 
-/* 6. Tabela vira LISTA — tabela de 6 colunas não cabe em 360px */
-@media(max-width:560px){
-  .kpis{grid-template-columns:1fr 1fr}
+/* 6. Tabela vira LISTA.
+   BREAKPOINT ÚNICO: 1100px — o MESMO em que a sidebar some e a barra entra.
+   "Sem sidebar = tabela é lista." Amarrar a tabela a um número menor que o da
+   navegação cria uma fresta: no ISO ficou em 560px e o celular do Isaac tem
+   ~591px de viewport — a barra aparecia, mas a tabela continuava espremida
+   com uma letra por linha. Não repetir. */
+@media(max-width:1100px){
   .tbl{display:block;width:100%}
   .tbl thead{display:none}
   .tbl tbody,.tbl tr{display:block;width:100%}
   .tbl tr{padding:12px 0;border-bottom:1px solid var(--line)}
   .tbl tr:last-child{border-bottom:none}
   .tbl tr:hover td{background:none}
-  .tbl td{border:none;padding:3px 0;overflow-wrap:anywhere}
+  .tbl td{border:none;padding:3px 0;overflow-wrap:anywhere;white-space:normal;text-align:left}
   .tbl td[data-l]{display:flex;justify-content:space-between;align-items:baseline;gap:12px;text-align:right}
   .tbl td[data-l]::before{content:attr(data-l);flex:none;font-size:10.5px;letter-spacing:.5px;
     text-transform:uppercase;color:var(--faint);text-align:left;font-weight:700}
 }
+@media(max-width:560px){ .kpis{grid-template-columns:1fr 1fr} }
 
 </style>
 </head>
