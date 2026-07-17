@@ -252,6 +252,18 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
     background:linear-gradient(90deg,var(--primary),var(--primary-2))}
 }
 
+/* Aviso de versão nova */
+.fs-update{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));
+  z-index:70;transform:translateY(140%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  padding:14px 16px;min-height:48px;border-radius:14px;cursor:pointer;font-family:inherit;
+  font-size:13.5px;font-weight:600;color:#fff;border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary-2));
+  box-shadow:0 12px 34px rgba(0,0,0,.55)}
+.fs-update.on{transform:translateY(0)}
+.fs-update:disabled{opacity:.75;cursor:default}
+@media(max-width:1100px){ .fs-update{bottom:calc(76px + env(safe-area-inset-bottom))} }
+@media(min-width:1101px){ .fs-update{left:auto;right:20px;max-width:380px} }
+
 /* 3. Folha "Mais": todos os destinos de uma vez */
 .fs-sheet-bg{position:fixed;inset:0;z-index:46;background:rgba(2,6,14,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end}
 .fs-sheet{width:100%;background:var(--bg2,#0d1424);border-top:1px solid var(--glass-brd);
@@ -1030,10 +1042,45 @@ window.FLOWSHIFT_CONFIG = {
   root.className=""; root.textContent="";
   ReactDOM.createRoot(root).render(h(App));
 
+  /* ---------- Atualização do app (mesmo padrão do VIZIO Money e do ISO) ----------
+     Antes só havia reg.update() no registro inicial. Num atalho de tela inicial
+     o app RETOMA do background em vez de abrir do zero, então a versão nova
+     nunca era procurada. O gatilho que faltava: checar ao voltar para o foco. */
   if("serviceWorker" in navigator){ window.addEventListener("load",function(){
+    var _reg=null, _avisou=false;
+    function avisarNovaVersao(){
+      if(_avisou) return; _avisou=true;
+      var b=document.createElement("button");
+      b.className="fs-update";
+      b.innerHTML='✨ Nova versão do FlowShift — <b>tocar para atualizar</b>';
+      b.onclick=function(){
+        try{ sessionStorage.setItem("fs_atualizou","1"); }catch(x){}
+        try{ if(_reg&&_reg.waiting) _reg.waiting.postMessage({type:"PULAR_ESPERA"}); }catch(x){}
+        b.textContent="Atualizando…"; b.disabled=true;
+        setTimeout(function(){ location.reload(); },1200);
+      };
+      document.body.appendChild(b);
+      requestAnimationFrame(function(){ b.classList.add("on"); });
+    }
     var _hadCtrl=!!navigator.serviceWorker.controller, _refreshing=false;
     navigator.serviceWorker.addEventListener("controllerchange",function(){ if(_refreshing)return; _refreshing=true; if(_hadCtrl) location.reload(); });
-    navigator.serviceWorker.register("sw.js").then(function(reg){ try{ reg.update(); }catch(x){} }).catch(function(){});
+    navigator.serviceWorker.register("sw.js").then(function(reg){
+      _reg=reg;
+      if(reg.waiting && navigator.serviceWorker.controller) avisarNovaVersao();
+      reg.addEventListener("updatefound",function(){
+        var novo=reg.installing; if(!novo) return;
+        novo.addEventListener("statechange",function(){
+          if(novo.state==="installed" && navigator.serviceWorker.controller) avisarNovaVersao();
+        });
+      });
+      try{ reg.update(); }catch(x){}
+      document.addEventListener("visibilitychange",function(){
+        if(document.visibilityState==="visible" && _reg){ try{ _reg.update(); }catch(x){} }
+      });
+      window.addEventListener("online",function(){ if(_reg){ try{ _reg.update(); }catch(x){} } });
+    }).catch(function(){});
+    try{ if(sessionStorage.getItem("fs_atualizou")){ sessionStorage.removeItem("fs_atualizou");
+      setTimeout(function(){ toast("Você está atualizado ✓"); },600); } }catch(x){}
   }); }
 })();
 
