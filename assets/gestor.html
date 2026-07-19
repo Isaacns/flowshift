@@ -187,8 +187,8 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
         var x=(r&&r.data)||{}; if(x.ok){toast(ok?"Troca aprovada":"Troca recusada");load();} else toast("Erro: "+(x.error||""));});
     }
     function aprovarCorr(id,ok){
-      sb.from("time_corrections").update({status:ok?"approved":"rejected"}).eq("id",id).then(function(r){
-        if(r&&r.error) toast("Erro: "+r.error.message); else {toast(ok?"Correção aprovada":"Correção recusada");load();}});
+      sb.functions.invoke("flowshift-correcao",{body:{id:id,action:ok?"approve":"reject"}}).then(function(r){
+        var x=(r&&r.data)||{}; if(x.ok){toast(ok?"Correção aprovada":"Correção recusada");load();} else toast("Erro: "+(x.error||""));});
     }
 
     var md=(props.user&&props.user.user_metadata)||{};
