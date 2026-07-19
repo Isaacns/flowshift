@@ -66,7 +66,19 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .fs-fld{margin-bottom:12px}
 .rowbtn{background:none;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer}
 .rowbtn:hover{border-color:var(--primary-2);color:var(--primary-2)}
-.rowbtn.danger:hover{border-color:var(--bad);color:var(--bad)}
+.rowbtn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,transparent)}
+.rowbtn.danger:hover{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.tbl tr.clic{cursor:pointer}
+/* no celular a linha inteira já abre a edição — o botão vira redundante */
+@media(max-width:1100px){ .soDesk{display:none!important} }
+.tbl tr.clic:hover td{background:color-mix(in srgb,var(--primary) 7%,transparent)}
+/* dedo: alvo de toque confortável nos botões de linha e no chevron da lista */
+@media (pointer:coarse),(max-width:1100px){
+  .rowbtn{min-height:40px;padding:9px 14px;font-size:12px}
+  .tbl tr.clic{position:relative;padding-right:18px}
+  .tbl tr.clic::after{content:"›";position:absolute;right:2px;top:50%;transform:translateY(-50%);
+    color:var(--faint);font-size:22px;line-height:1;pointer-events:none}
+}
 
 /* ===== AURA — marca viva (padrão INPERSON/VIZIO) =====
    Mesmos tempos e curvas do Sistema INPERSON (ip-breathe-soft / ip-glow / ip-aura-breathe),
@@ -134,7 +146,17 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 .fs-umi:hover{background:rgba(130,165,240,.1)}
 .fs-umi.danger{color:#ff8f8f} .fs-umi.danger:hover{background:rgba(255,90,90,.12)}
 .fs-modal-bg{position:fixed;inset:0;z-index:60;background:rgba(2,6,14,.6);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px}
-.fs-modal{width:100%;max-width:420px;border-radius:18px;padding:22px}
+.fs-modal{width:100%;max-width:420px;border-radius:18px;padding:22px;max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* No celular o modal vira folha inferior (mesmo padrão do .fs-sheet): sobe do rodapé,
+   ocupa a largura toda e rola por dentro — formulário longo não fica cortado. */
+@media(max-width:640px){
+  .fs-modal-bg{place-items:end center;padding:0}
+  .fs-modal{max-width:none;border-radius:20px 20px 0 0;max-height:88vh;
+    padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+    animation:fs-sheet-up .25s ease-out}
+  .fs-modal .fs-grid2,.fs-modal .fs-grid3{grid-template-columns:1fr}
+}
+@keyframes fs-sheet-up{from{transform:translateY(24px);opacity:.6}to{transform:translateY(0);opacity:1}}
 .fs-inp{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--text);font-size:14px;box-sizing:border-box}
 .tgl{margin-left:auto;background:var(--chip);border:1px solid var(--line);color:var(--muted);width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center}
 .tgl:hover{color:var(--primary-2)} .tgl svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
@@ -325,6 +347,25 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
     text-transform:uppercase;color:var(--faint);text-align:left;font-weight:700}
 }
 @media(max-width:560px){ .kpis{grid-template-columns:1fr 1fr} }
+
+/* 7. Exceção à regra da lista: a GRADE de escala é matriz (funcionário × dia).
+   Virar cartão destruiria a leitura, então ela rola na horizontal. */
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:1100px){
+  .tbl.grade{display:table;min-width:580px}
+  .tbl.grade thead{display:table-header-group}
+  .tbl.grade tbody{display:table-row-group}
+  .tbl.grade tr{display:table-row;padding:0}
+  .tbl.grade td{display:table-cell;padding:9px 6px}
+  .tbl.grade td::before{content:none}
+}
+
+/* 8. Cabeçalho de tela: no celular título, busca e ações empilham. */
+@media(max-width:1100px){
+  .top{flex-wrap:wrap;gap:10px}
+  .top .search{order:3;flex-basis:100%;max-width:none}
+  .top .tbtn{flex:1;justify-content:center;min-height:44px}
+}
 
 </style>
 </head>
@@ -628,13 +669,15 @@ window.FLOWSHIFT_CONFIG = {
       h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
         h("table",{className:"tbl"},
           h("thead",null,h("tr",null,["Funcionário","Cargo","Setor","Vínculo","Situação",""].map(function(t,i){return h("th",{key:i},t);}))),
-          h("tbody",null, filtrados.length? filtrados.map(function(f,i){return h("tr",{key:f.id||i},
-            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(f.full_name,i),h("b",null,f.full_name))),
-            h("td",null,f.role_title||"—"),
-            h("td",null,f.dept||"—"),
-            h("td",null,h("span",{className:"badge "+((f.contract_type||"clt")==="clt"?"b-clt":"b-pj")},(f.contract_type||"clt").toUpperCase())),
-            h("td",null,h("span",{className:"badge "+(f.status==="ativo"?"b-ok":"b-fe")},cap(f.status))),
-            h("td",{style:{textAlign:"right"}}, h("button",{className:"rowbtn",onClick:function(){setForm(f);}},"Editar")));})
+          h("tbody",null, filtrados.length? filtrados.map(function(f,i){return h("tr",{key:f.id||i,
+            className:(DEMO||!sb)?"":"clic", onClick:function(){ if(!DEMO&&sb) setForm(f); },
+            title:(DEMO||!sb)?null:"Abrir para editar"},
+            h("td",{"data-l":"Funcionário"},h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(f.full_name,i),h("b",null,f.full_name))),
+            h("td",{"data-l":"Cargo"},f.role_title||"—"),
+            h("td",{"data-l":"Setor"},f.dept||"—"),
+            h("td",{"data-l":"Vínculo"},h("span",{className:"badge "+((f.contract_type||"clt")==="clt"?"b-clt":"b-pj")},(f.contract_type||"clt").toUpperCase())),
+            h("td",{"data-l":"Situação"},h("span",{className:"badge "+(f.status==="ativo"?"b-ok":"b-fe")},cap(f.status))),
+            h("td",{className:"soDesk",style:{textAlign:"right"}}, h("button",{className:"rowbtn",onClick:function(ev){ev.stopPropagation();setForm(f);}},"Editar")));})
             : [h("tr",{key:"v"},h("td",{colSpan:6,style:{color:"var(--muted)",textAlign:"center",padding:"26px"}},
                 live?"Nenhum resultado para a busca.":"Clique em “Novo” para cadastrar o primeiro funcionário."))])
         )
@@ -682,7 +725,7 @@ window.FLOWSHIFT_CONFIG = {
   }
   function miniStat(label,val,color){return h("div",{className:"glass",style:{padding:"10px 14px",borderRadius:"12px"}}, h("div",{style:{fontSize:"20px",fontWeight:800,color:color}},val), h("div",{style:{fontSize:"11px",color:"var(--muted)"}},label));}
   function escGrid(gen){
-    return h("table",{className:"tbl"},
+    return h("div",{className:"tblwrap"}, h("table",{className:"tbl grade"},
       h("thead",null,h("tr",null,[h("th",{key:0},"Funcionário")].concat(DIAS.map(function(d,i){return h("th",{key:i+1,style:{textAlign:"center"}},d);})))),
       h("tbody",null,
         DATA.esc.map(function(r,i){return h("tr",{key:i},
@@ -692,7 +735,7 @@ window.FLOWSHIFT_CONFIG = {
           gen? [] : [h("tr",{key:"vaga"}, h("td",{style:{color:"var(--bad)",fontWeight:700}},"⚠ Turno N · Dom"), h("td",{colSpan:7,style:{color:"var(--bad)"}},"Sem cobertura — 1 técnico faltando (nenhum elegível sem violar descanso)"))]
         )
       )
-    );
+    ));
   }
   function Ponto(props){
     var st=props.store, live=st&&st.ponto;
@@ -757,18 +800,18 @@ window.FLOWSHIFT_CONFIG = {
         h("table",{className:"tbl"},
           h("thead",null,h("tr",null,["Funcionário","Dias apurados","Marcações incompletas","Saldo do mês"].map(function(t,i){return h("th",{key:i},t);}))),
           h("tbody",null, prev.linhas.map(function(l,i){return h("tr",{key:i},
-            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(l.nome,i),h("b",null,l.nome))),
-            h("td",null,String(l.dias)),
-            h("td",{style:{color:l.incompletos?"var(--warn)":"var(--muted)"}}, l.incompletos?String(l.incompletos):"—"),
-            h("td",{style:{fontWeight:800,color:l.delta<0?"var(--bad)":"var(--good)"}},(l.delta>=0?"+":"")+l.delta+"h"));}))
+            h("td",{"data-l":"Funcionário"},h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(l.nome,i),h("b",null,l.nome))),
+            h("td",{"data-l":"Dias apurados"},String(l.dias)),
+            h("td",{"data-l":"Incompletas",style:{color:l.incompletos?"var(--warn)":"var(--muted)"}}, l.incompletos?String(l.incompletos):"—"),
+            h("td",{"data-l":"Saldo do mês",style:{fontWeight:800,color:l.delta<0?"var(--bad)":"var(--good)"}},(l.delta>=0?"+":"")+l.delta+"h"));}))
         )) : null,
       h("div",{className:"panel glass"},
         h("div",{className:"ph"},h("h3",null,"Saldo por funcionário")),
         h("table",{className:"tbl"}, h("thead",null,h("tr",null,[h("th",{key:0},"Funcionário"),h("th",{key:1},"Saldo"),h("th",{key:2},"Barra")])),
           h("tbody",null, rows.map(function(b,i){return h("tr",{key:i},
-            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(b[0],i),h("b",null,b[0]))),
-            h("td",{style:{fontWeight:800,color:b[2]}},b[1]),
-            h("td",null,h("div",{className:"bar",style:{width:"160px"}},h("i",{style:{width:Math.min(100,Math.abs(parseInt(b[1],10))*4)+"%",background:b[2],color:b[2]}}))));}))
+            h("td",{"data-l":"Funcionário"},h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(b[0],i),h("b",null,b[0]))),
+            h("td",{"data-l":"Saldo",style:{fontWeight:800,color:b[2]}},b[1]),
+            h("td",{className:"soDesk"},h("div",{className:"bar",style:{width:"160px"}},h("i",{style:{width:Math.min(100,Math.abs(parseInt(b[1],10))*4)+"%",background:b[2],color:b[2]}}))));}))
         )
       )
     );
@@ -829,7 +872,7 @@ window.FLOWSHIFT_CONFIG = {
       h("table",{className:"tbl"},
         h("thead",null,h("tr",null,["Data","Dia","Prev.","Entrada","Ini.Int","Fim.Int","Saída","Trab.","Not.","HE50","HE100","Saldo"].map(function(t,i){return h("th",{key:i},t);}))),
         h("tbody",null, p.r.rows.map(function(r,i){ var wd=new Date(r.date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}); var dd=r.date.slice(8)+"/"+r.date.slice(5,7);
-          return h("tr",{key:i}, h("td",null,dd), h("td",null,wd), h("td",null,r.previsto!=null?fmtH(r.previsto):"—"), h("td",null,tzTime(r.in)), h("td",null,tzTime(r.bs)), h("td",null,tzTime(r.be)), h("td",null,tzTime(r.out)), h("td",null,r.real!=null?fmtH(r.real):"—"), h("td",null,r.night?fmtH(r.night):"—"), h("td",null,r.he50?fmtH(r.he50):"—"), h("td",null,r.he100?fmtH(r.he100):"—"), h("td",{style:{fontWeight:800,color:(r.saldo==null?"var(--muted)":(r.saldo<0?"var(--bad)":"var(--good)"))}}, r.saldo!=null?((r.saldo>=0?"+":"")+fmtH(r.saldo)):"—")); }))
+          return h("tr",{key:i}, h("td",{"data-l":"Data"},dd+" · "+wd), h("td",{className:"soDesk"},wd), h("td",{"data-l":"Previsto"},r.previsto!=null?fmtH(r.previsto):"—"), h("td",{"data-l":"Entrada"},tzTime(r.in)), h("td",{"data-l":"Ini. interv."},tzTime(r.bs)), h("td",{"data-l":"Fim interv."},tzTime(r.be)), h("td",{"data-l":"Saída"},tzTime(r.out)), h("td",{"data-l":"Trabalhado"},r.real!=null?fmtH(r.real):"—"), h("td",{"data-l":"Noturno"},r.night?fmtH(r.night):"—"), h("td",{"data-l":"HE 50%"},r.he50?fmtH(r.he50):"—"), h("td",{"data-l":"HE 100%"},r.he100?fmtH(r.he100):"—"), h("td",{"data-l":"Saldo",style:{fontWeight:800,color:(r.saldo==null?"var(--muted)":(r.saldo<0?"var(--bad)":"var(--good)"))}}, r.saldo!=null?((r.saldo>=0?"+":"")+fmtH(r.saldo)):"—")); }))
       )
     );
   }
@@ -839,9 +882,9 @@ window.FLOWSHIFT_CONFIG = {
       h("table",{className:"tbl"},
         h("thead",null,h("tr",null,["Funcionário","Dias","Previsto","Realizado","Noturno","HE 50%","HE 100%","Saldo"].map(function(t,i){return h("th",{key:i},t);}))),
         h("tbody",null, per.map(function(p,i){ return h("tr",{key:i},
-          h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(p.emp.full_name,i),h("b",null,p.emp.full_name))),
-          h("td",null,String(p.r.dias)), h("td",null,fmtH(p.r.prev)), h("td",null,fmtH(p.r.real)), h("td",null,fmtH(p.r.night)), h("td",null,fmtH(p.r.he50)), h("td",null,fmtH(p.r.he100)),
-          h("td",{style:{fontWeight:800,color:p.r.saldo<0?"var(--bad)":"var(--good)"}}, (p.r.saldo>=0?"+":"")+fmtH(p.r.saldo))); }))
+          h("td",{"data-l":"Funcionário"},h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(p.emp.full_name,i),h("b",null,p.emp.full_name))),
+          h("td",{"data-l":"Dias"},String(p.r.dias)), h("td",{"data-l":"Previsto"},fmtH(p.r.prev)), h("td",{"data-l":"Realizado"},fmtH(p.r.real)), h("td",{"data-l":"Noturno"},fmtH(p.r.night)), h("td",{"data-l":"HE 50%"},fmtH(p.r.he50)), h("td",{"data-l":"HE 100%"},fmtH(p.r.he100)),
+          h("td",{"data-l":"Saldo",style:{fontWeight:800,color:p.r.saldo<0?"var(--bad)":"var(--good)"}}, (p.r.saldo>=0?"+":"")+fmtH(p.r.saldo))); }))
       )
     );
   }
@@ -928,6 +971,78 @@ window.FLOWSHIFT_CONFIG = {
     );
   }
 
+  var PERFIS=[["admin","Administrador","Acesso total: escalas, ponto, relatórios e configurações."],
+              ["supervisor","Supervisor","Aprova trocas e correções; gerencia a operação do dia."],
+              ["coordinator","Coordenador","Coordena equipes e escalas da sua unidade."],
+              ["leader","Líder","Acompanha a equipe; aprovações limitadas."],
+              ["employee","Funcionário","Vê apenas a própria escala e bate o próprio ponto."]];
+  function perfilNome(r){ if(r==="master") return "Master"; var f=PERFIS.filter(function(p){return p[0]===r;})[0]; return f?f[1]:(r||"—"); }
+  function UserForm(props){
+    var u=props.u||{};
+    var isMaster=u.role==="master";
+    var rl=useState(isMaster?"admin":(u.role||"employee")),role=rl[0],setRole=rl[1];
+    var em=useState(u.employee_id||""),emp=em[0],setEmp=em[1];
+    var pw=useState(""),senha=pw[0],setSenha=pw[1];
+    var bs=useState(false),busy=bs[0],setBusy=bs[1];
+    var cf=useState(false),confirma=cf[0],setConfirma=cf[1];
+    function chamar(body){ return sb.functions.invoke("flowshift-admin-usuarios",{body:body}).then(function(r){ return (r&&r.data)||{}; }); }
+    function salvar(){
+      setBusy(true);
+      var fila=[];
+      if(!isMaster && role!==u.role) fila.push({action:"role",user_id:u.user_id,role:role});
+      if((emp||"")!==(u.employee_id||"")) fila.push({action:"link",user_id:u.user_id,employee_id:emp||null});
+      if(senha) fila.push({action:"senha",user_id:u.user_id,password:senha});
+      if(!fila.length){ setBusy(false); props.onClose(); return; }
+      (function proximo(i){
+        if(i>=fila.length){ setBusy(false); toast("Usuário atualizado"); props.onSaved(); return; }
+        chamar(fila[i]).then(function(d){
+          if(!d.ok){ setBusy(false); toast("Erro: "+(d.error||"")); return; }
+          proximo(i+1);
+        }).catch(function(){ setBusy(false); toast("Falha ao salvar"); });
+      })(0);
+    }
+    function excluir(){
+      setBusy(true);
+      chamar({action:"delete",user_id:u.user_id}).then(function(d){
+        setBusy(false);
+        if(d.ok){ toast("Usuário excluído"); props.onSaved(); } else toast("Erro: "+(d.error||""));
+      }).catch(function(){ setBusy(false); toast("Falha ao excluir"); });
+    }
+    var descr=(PERFIS.filter(function(p){return p[0]===role;})[0]||[])[2]||"";
+    return h("div",{className:"fs-modal-bg",onClick:function(ev){ if(ev.target===ev.currentTarget) props.onClose(); }},
+      h("div",{className:"fs-modal glass",style:{maxWidth:"470px"}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:"12px",marginBottom:"18px"}},
+          fsAvatar({name:u.name},48),
+          h("div",{style:{minWidth:0}},
+            h("div",{style:{fontWeight:800,fontSize:"15px",overflowWrap:"anywhere"}},u.name||u.email),
+            h("div",{style:{fontSize:"12px",color:"var(--muted)",overflowWrap:"anywhere"}},u.email))),
+        isMaster? h("div",{style:{background:"color-mix(in srgb,var(--violet) 14%,transparent)",color:"var(--violet)",borderRadius:"10px",padding:"10px 12px",fontSize:"12px",marginBottom:"14px",lineHeight:1.5}},
+          "Este é o usuário master — o perfil dele não pode ser alterado nem excluído por segurança.") : null,
+        h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Perfil de acesso"),
+          h("select",{className:"fs-inp",value:role,disabled:isMaster,onChange:function(e){setRole(e.target.value);}},
+            PERFIS.map(function(p){return h("option",{key:p[0],value:p[0]},p[1]);})),
+          descr&&!isMaster? h("div",{style:{fontSize:"11.5px",color:"var(--muted)",marginTop:"6px",lineHeight:1.5}},descr):null),
+        h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Funcionário vinculado"),
+          h("select",{className:"fs-inp",value:emp,onChange:function(e){setEmp(e.target.value);}},
+            [h("option",{key:"",value:""},"— nenhum —")].concat(
+              (props.emps||[]).filter(function(e){return !e.vinculado || e.id===u.employee_id;})
+                .map(function(e){return h("option",{key:e.id,value:e.id},e.full_name);}))),
+          h("div",{style:{fontSize:"11.5px",color:"var(--muted)",marginTop:"6px",lineHeight:1.5}},
+            "Liga este login a uma ficha de funcionário. Sem o vínculo, a pessoa entra mas não vê a própria escala nem consegue bater ponto.")),
+        h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Nova senha (deixe em branco para manter)"),
+          h("input",{className:"fs-inp",type:"password",value:senha,placeholder:"••••••",onChange:function(e){setSenha(e.target.value);}})),
+        h("div",{style:{display:"flex",gap:"8px",marginTop:"8px"}},
+          h("button",{className:"tbtn primary",disabled:busy,onClick:salvar,style:{flex:1,justifyContent:"center"}}, busy?"Salvando…":"Salvar"),
+          h("button",{className:"tbtn",disabled:busy,onClick:props.onClose},"Cancelar")),
+        !isMaster? h("div",{style:{marginTop:"16px",paddingTop:"14px",borderTop:"1px solid var(--line)"}},
+          confirma
+            ? h("div",null, h("div",{style:{fontSize:"12px",color:"var(--bad)",marginBottom:"8px",lineHeight:1.5}},"Excluir este login? A ficha do funcionário permanece; apenas o acesso é removido."),
+                h("div",{style:{display:"flex",gap:"8px"}},
+                  h("button",{className:"rowbtn danger",disabled:busy,onClick:excluir},"Confirmar exclusão"),
+                  h("button",{className:"rowbtn",onClick:function(){setConfirma(false);}},"Cancelar")))
+            : h("button",{className:"rowbtn danger",onClick:function(){setConfirma(true);}},"Excluir login")) : null
+      ));
+  }
   function Usuarios(props){
     var st=useState([]),list=st[0],setList=st[1];
     var ld=useState(true),loading=ld[0],setLoad=ld[1];
@@ -937,6 +1052,7 @@ window.FLOWSHIFT_CONFIG = {
     var rl=useState("admin"),nrole=rl[0],setNrole=rl[1];
     var ef=useState([]),freeEmps=ef[0],setFreeEmps=ef[1];
     var ne=useState(""),nemp=ne[0],setNemp=ne[1];
+    var ed=useState(null),edit=ed[0],setEdit=ed[1];
     function load(){
       if(DEMO||!sb){ setLoad(false); setList([{name:"Isaac Nogueira",email:"isaac@flowshift.local",role:"master"},{name:"Santiago",email:"santiago@flowshift.local",role:"admin"}]); return; }
       setLoad(true);
@@ -965,7 +1081,7 @@ window.FLOWSHIFT_CONFIG = {
             h("input",{style:inp,placeholder:"E-mail",value:nemail,onChange:function(e){setNemail(e.target.value);}}),
             h("input",{style:inp,type:"password",placeholder:"Senha",value:npass,onChange:function(e){setNpass(e.target.value);}}),
             h("select",{style:inp,value:nrole,onChange:function(e){setNrole(e.target.value);}},
-              ["admin","supervisor","coordinator","leader","employee"].map(function(r){return h("option",{key:r,value:r},r);})),
+              PERFIS.map(function(p){return h("option",{key:p[0],value:p[0]},p[1]);})),
             h("select",{style:inp,value:nemp,onChange:function(e){setNemp(e.target.value);}},
               [h("option",{key:"",value:""},"— vincular a um funcionário (opcional) —")].concat(
                 (freeEmps||[]).filter(function(e){return !e.vinculado;}).map(function(e){return h("option",{key:e.id,value:e.id},e.full_name+(e.role_title?(" · "+e.role_title):""));}))),
@@ -975,20 +1091,19 @@ window.FLOWSHIFT_CONFIG = {
         ),
         h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
           h("table",{className:"tbl"},
-            h("thead",null,h("tr",null,["Usuário","E-mail","Papel","Funcionário vinculado"].map(function(t,i){return h("th",{key:i},t);}))),
-            h("tbody",null, loading? [h("tr",{key:0},h("td",{colSpan:4,style:{color:"var(--muted)"}},"Carregando…"))] : list.map(function(u,i){return h("tr",{key:i},
-              h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(u.name||u.email,i),h("b",null,u.name||u.email))),
-              h("td",null,u.email),
-              h("td",null,h("span",{className:"badge "+(u.role==="master"?"b-pj":"b-clt")},u.role)),
-              h("td",null, (DEMO||!sb)? (u.employee_nome||"—")
-                : h("select",{style:Object.assign({},inp,{padding:"6px 8px",fontSize:"12px"}),value:u.employee_id||"",onChange:function(e){vincular(u.user_id,e.target.value);}},
-                    [h("option",{key:"",value:""},"— não vinculado —")].concat(
-                      (freeEmps||[]).filter(function(e){return !e.vinculado || e.id===u.employee_id;})
-                        .map(function(e){return h("option",{key:e.id,value:e.id},e.full_name);}))))
+            h("thead",null,h("tr",null,["Usuário","E-mail","Perfil","Funcionário vinculado"].map(function(t,i){return h("th",{key:i},t);}))),
+            h("tbody",null, loading? [h("tr",{key:0},h("td",{colSpan:4,style:{color:"var(--muted)"}},"Carregando…"))] : list.map(function(u,i){return h("tr",{key:i,
+              className:(DEMO||!sb)?"":"clic", onClick:function(){ if(!DEMO&&sb) setEdit(u); },
+              title:(DEMO||!sb)?null:"Abrir para editar"},
+              h("td",{"data-l":"Usuário"},h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(u.name||u.email,i),h("b",null,u.name||u.email))),
+              h("td",{"data-l":"E-mail"},u.email),
+              h("td",{"data-l":"Perfil"},h("span",{className:"badge "+(u.role==="master"?"b-pj":"b-clt")},perfilNome(u.role))),
+              h("td",{"data-l":"Funcionário"}, u.employee_nome || h("span",{style:{color:"var(--faint)"}},"não vinculado"))
               );}))
           )
         )
       ),
+      edit? h(UserForm,{u:edit,emps:freeEmps,onClose:function(){setEdit(null);},onSaved:function(){setEdit(null);load();}}) : null,
       h("div",{className:"hint"}, (DEMO||!sb)?"Demonstração — a criação real de usuários exige login do master no modo produção.":"Gestão de usuários protegida: só o master pode listar e criar.")
     );
   }
