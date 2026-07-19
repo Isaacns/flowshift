@@ -56,6 +56,52 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 /* ===== LOGIN ===== */
 .login{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:24px}
 .login .card{width:100%;max-width:410px;border-radius:var(--r-lg);padding:34px 30px}
+/* ==========================================================================
+   PADRÃO ARRASTAR-E-SOLTAR — VIZIO/INPERSON
+   Origem: app-pauta.js (Inovar Formaturas) — classes e visual espelhados de lá.
+   .dnd-item (arrastável) · .dnd-item.dragging (fantasma, opacity .45) ·
+   .dnd-zone (alvo) · .dnd-zone.drop-ok (alvo ativo) · .dnd-zone.deny (proibido)
+   Regra: arrastar é atalho, NUNCA o único caminho — sempre há clique equivalente.
+   ========================================================================== */
+.dnd-item{cursor:grab;-webkit-user-select:none;user-select:none;transition:transform .12s,opacity .12s}
+.dnd-item:active{cursor:grabbing}
+.dnd-item.dragging{opacity:.45}
+.dnd-zone{transition:background .14s,outline-color .14s}
+.dnd-zone.drop-ok{outline:2px dashed var(--primary-2);outline-offset:-4px;
+  background:color-mix(in srgb,var(--primary) 9%,transparent)}
+.dnd-zone.deny{outline:2px dashed var(--bad);outline-offset:-4px;
+  background:color-mix(in srgb,var(--bad) 9%,transparent);cursor:not-allowed}
+
+/* ===== Grade de escala editável ===== */
+.gr{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.gr th{position:sticky;top:0;z-index:2;background:var(--glass-2);backdrop-filter:blur(10px);
+  padding:9px 6px;text-align:center;font-weight:800;font-size:11px;color:var(--muted);
+  border-bottom:1px solid var(--line);white-space:nowrap}
+.gr th.hoje{color:var(--primary-2)}
+.gr th:first-child{text-align:left;padding-left:12px;min-width:190px;z-index:3;left:0}
+.gr td{border-bottom:1px solid var(--line);padding:4px;vertical-align:middle}
+.gr td.nm{padding-left:12px;min-width:190px;position:sticky;left:0;background:var(--glass);z-index:1}
+.gr td.dia{text-align:center;min-width:76px;height:52px}
+.gr td.dia.hoje{background:color-mix(in srgb,var(--primary) 6%,transparent)}
+.gr .chip2{display:inline-grid;place-items:center;width:52px;height:34px;border-radius:10px;
+  font-weight:800;font-size:11.5px;color:#fff;line-height:1.05;text-align:center}
+.gr .chip2 small{display:block;font-size:8.5px;opacity:.85;font-weight:700}
+.gr .vazio{width:52px;height:34px;border-radius:10px;border:1px dashed var(--line);
+  background:none;color:var(--faint);font-size:17px;cursor:pointer;font-family:var(--font);line-height:1}
+.gr .vazio:hover{border-color:var(--primary-2);color:var(--primary-2)}
+.grwrap{overflow:auto;max-height:min(66vh,620px);border-radius:12px}
+.wkbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.wkbar .nav{background:var(--glass-2);border:1px solid var(--glass-brd);color:var(--text);
+  width:38px;height:38px;border-radius:11px;cursor:pointer;font-size:15px;font-family:var(--font)}
+.wkbar .per{font-weight:800;font-size:14px;min-width:210px}
+.turnopop{position:absolute;z-index:70;background:var(--bg2,#0d1424);border:1px solid var(--glass-brd);
+  border-radius:14px;padding:8px;box-shadow:0 20px 50px rgba(0,0,0,.6);display:grid;gap:5px;min-width:186px}
+.turnopop button{display:flex;align-items:center;gap:9px;background:none;border:0;border-radius:9px;
+  padding:9px 10px;color:var(--text);font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer;text-align:left;width:100%}
+.turnopop button:hover{background:var(--glass-2)}
+.turnopop .sw{width:16px;height:16px;border-radius:5px;flex:none}
+@media(max-width:1100px){ .gr th:first-child,.gr td.nm{min-width:140px} .grwrap{max-height:none} }
+
 /* ===== Barra superior: empresa à esquerda, usuário à direita (padrão da casa) ===== */
 .topbar{position:sticky;top:0;z-index:35;display:flex;align-items:center;gap:12px;
   padding:10px 16px;border-bottom:1px solid var(--line);
@@ -706,7 +752,170 @@ window.FLOWSHIFT_CONFIG = {
       form? h(EmpForm,{emp:form,units:(st&&st.units)||[],unitAtual:props.unit,onClose:function(){setForm(null);},onSaved:recarregar}) : null
     );
   }
-  function Escalas(props){
+  // ===== Escalas: grade real, edição manual e arrastar-e-soltar =====
+  var TURNOS=[["M","Manhã","07:00–19:00",12,"var(--info)"],
+              ["T","Tarde","13:00–22:00",9,"var(--info)"],
+              ["N","Noite","19:00–07:00",12,"var(--violet)"],
+              ["P","Plantão","12 horas",12,"var(--warn)"],
+              ["F","Folga","—",0,"var(--faint)"]];
+  function turnoDef(c){ return TURNOS.filter(function(t){return t[0]===c;})[0]||[c,c,"",0,"var(--info)"]; }
+  function segunda(d){ var x=new Date(d+"T12:00:00"); var w=x.getDay(); x.setDate(x.getDate()-((w+6)%7)); return x.toISOString().slice(0,10); }
+  function maisDias(d,n){ var x=new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
+  function ddmm(d){ return d.slice(8)+"/"+d.slice(5,7); }
+  var DIASEM=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+
+  function Escalas2(props){
+    var hojeStr=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
+    var wk=useState(segunda(hojeStr)),ini=wk[0],setIni=wk[1];
+    var dd=useState(null),dados=dd[0],setDados=dd[1];
+    var bs=useState(false),busy=bs[0],setBusy=bs[1];
+    var gg=useState(null),ger=gg[0],setGer=gg[1];
+    var dr=useState(null),drag=dr[0],setDrag=dr[1];
+    var pp=useState(null),pop=pp[0],setPop=pp[1];
+    var st=props.store, emps=((st&&st.employees)||[]).filter(function(e){return e.status==="ativo";});
+    var dias=[0,1,2,3,4,5,6].map(function(i){return maisDias(ini,i);});
+    var fim=dias[6];
+
+    function carregar(){
+      if(DEMO||!sb||!props.unit){ setDados({assigns:[],schedId:null}); return; }
+      setBusy(true);
+      sb.from("assignments").select("id,employee_id,work_date,shift,hours,schedule_id,schedules!inner(unit_id)")
+        .eq("schedules.unit_id",props.unit).gte("work_date",ini).lte("work_date",fim)
+        .then(function(r){
+          setBusy(false);
+          if(r.error){ toast("Erro ao carregar: "+r.error.message); setDados({assigns:[],schedId:null}); return; }
+          var lista=r.data||[];
+          setDados({assigns:lista, schedId:(lista[0]&&lista[0].schedule_id)||null});
+        });
+    }
+    useEffect(carregar,[ini,props.unit,props.store]);
+
+    // garante um rascunho para receber lançamentos manuais quando a semana está vazia
+    function garantirEscala(){
+      if(dados&&dados.schedId) return Promise.resolve(dados.schedId);
+      return sb.from("schedules").insert({unit_id:props.unit,period:"["+ini+","+maisDias(fim,1)+")",status:"draft",version:1})
+        .select("id").single().then(function(r){
+          if(r.error) throw new Error(r.error.message);
+          setDados(Object.assign({},dados||{assigns:[]},{schedId:r.data.id}));
+          return r.data.id;
+        });
+    }
+    function achar(empId,dia){ return ((dados&&dados.assigns)||[]).filter(function(a){return a.employee_id===empId&&a.work_date===dia;})[0]; }
+
+    function definirTurno(empId,dia,codigo){
+      setPop(null);
+      if(DEMO||!sb){ toast("Requer modo produção"); return; }
+      var ja=achar(empId,dia);
+      if(codigo===null){
+        if(!ja) return;
+        sb.from("assignments").delete().eq("id",ja.id).then(function(r){
+          if(r.error) toast("Erro: "+r.error.message); else { toast("Turno removido"); carregar(); } });
+        return;
+      }
+      var def=turnoDef(codigo);
+      if(ja){
+        sb.from("assignments").update({shift:codigo,hours:def[3]}).eq("id",ja.id).then(function(r){
+          if(r.error) toast("Erro: "+r.error.message); else carregar(); });
+      } else {
+        garantirEscala().then(function(sid){
+          return sb.from("assignments").insert({schedule_id:sid,employee_id:empId,work_date:dia,shift:codigo,hours:def[3]});
+        }).then(function(r){
+          if(r&&r.error) toast("Erro: "+r.error.message); else carregar();
+        }).catch(function(e){ toast("Erro: "+e.message); });
+      }
+    }
+    // arrastar: move o turno para outro dia e/ou outra pessoa
+    function soltar(empId,dia){
+      if(!drag) return;
+      setDrag(null);
+      if(drag.employee_id===empId&&drag.work_date===dia) return;
+      var ocupado=achar(empId,dia);
+      if(ocupado){ toast("Essa pessoa já tem turno nesse dia"); return; }
+      sb.from("assignments").update({employee_id:empId,work_date:dia}).eq("id",drag.id).then(function(r){
+        if(r.error) toast("Erro: "+r.error.message); else { toast("Turno movido"); carregar(); } });
+    }
+
+    function motor(commit,replace){
+      if(!props.unit){ toast("Selecione a unidade"); return; }
+      setBusy(true); if(!commit) setGer(null);
+      sb.functions.invoke("flowshift-gerar-escala",{body:{unit_id:props.unit,period_start:ini,days:7,demand:{M:1,N:1},commit:commit===true,replace:replace===true}})
+        .then(function(res){
+          setBusy(false); var d=(res&&res.data)||{};
+          if(d.conflict){ setGer(d); toast("Já existe escala nessa semana"); return; }
+          if(!d.ok){ toast("Erro: "+(d.error||"motor")); return; }
+          if(commit){ toast("Escala publicada · "+d.coverage_pct+"% coberta"); setGer(null); carregar(); }
+          else setGer(d);
+        }).catch(function(){ setBusy(false); toast("Falha ao chamar o motor"); });
+    }
+
+    var total=((dados&&dados.assigns)||[]).filter(function(a){return a.shift!=="F";}).length;
+    return h("div",null,
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Escalas"),
+        h("div",{className:"sub"}, props.unitName+" · "+total+" turno(s) na semana"+((!DEMO&&sb)?" · ● ao vivo":""))),
+        h("button",{className:"tbtn ghost",onClick:function(){motor(false);}}, Icon("spark")," Preencher automaticamente"),
+        h("button",{className:"tbtn",onClick:function(){ if(ger&&ger.conflict) motor(true,true); else motor(true); }}, Icon("check")," Publicar semana")),
+      h("div",{className:"wkbar"},
+        h("button",{className:"nav",title:"Semana anterior",onClick:function(){setIni(maisDias(ini,-7));setGer(null);}},"‹"),
+        h("button",{className:"nav",title:"Próxima semana",onClick:function(){setIni(maisDias(ini,7));setGer(null);}},"›"),
+        h("div",{className:"per"}, ddmm(ini)+" a "+ddmm(fim)),
+        h("button",{className:"rowbtn",onClick:function(){setIni(segunda(hojeStr));setGer(null);}},"Semana atual")),
+      ger? h("div",{className:"panel glass"},
+        h("div",{className:"ph"}, h("h3",null,ger.conflict?"Semana já tem escala":"Prévia do preenchimento automático"),
+          h("span",{className:"tag live"}, ger.coverage_pct+"% coberta · "+((ger.gaps||[]).length)+" buraco(s)")),
+        ger.conflict? h("div",{style:{color:"var(--warn)",fontSize:"12.5px",marginBottom:"8px"}}, ger.error+" Use “Publicar semana” para substituir.") : null,
+        (ger.explanations||[]).map(function(x,i){return h("div",{key:i,style:{color:"var(--muted)",fontSize:"12.5px",margin:"3px 0"}},"• "+x);}),
+        h("div",{style:{marginTop:"10px",display:"flex",gap:"8px"}},
+          h("button",{className:"tbtn",onClick:function(){motor(true,!!ger.conflict);}}, ger.conflict?"Substituir e publicar":"Publicar esta proposta"),
+          h("button",{className:"tbtn ghost",onClick:function(){setGer(null);}},"Descartar"))) : null,
+      h("div",{className:"panel glass",style:{padding:"8px"}},
+        busy? h("div",{style:{textAlign:"center",padding:"34px",color:"var(--muted)"}},"Carregando…")
+        : (!emps.length? h("div",{style:{textAlign:"center",padding:"34px",color:"var(--muted)"}},"Cadastre funcionários para montar a escala.")
+        : h("div",{className:"grwrap"},
+            h("table",{className:"gr"},
+              h("thead",null,h("tr",null,[h("th",{key:"h0"},"Funcionário")].concat(
+                dias.map(function(d,i){ return h("th",{key:i,className:(d===hojeStr?"hoje":"")}, DIASEM[i], h("div",{style:{fontWeight:600,fontSize:"10px"}}, ddmm(d))); })))),
+              h("tbody",null, emps.map(function(e,ri){
+                return h("tr",{key:e.id},
+                  h("td",{className:"nm"}, h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}}, Av(e.full_name,ri),
+                    h("div",{style:{minWidth:0}}, h("b",{style:{fontSize:"12.5px"}},e.full_name),
+                      h("div",{style:{fontSize:"10.5px",color:"var(--muted)"}}, e.role_title||"—")))),
+                  dias.map(function(d,ci){
+                    var a=achar(e.id,d), def=a?turnoDef(a.shift):null;
+                    return h("td",{key:ci, className:"dia dnd-zone"+(d===hojeStr?" hoje":""),
+                      onDragOver:function(ev){ ev.preventDefault();
+                        try{ ev.dataTransfer.dropEffect="move"; }catch(x){}
+                        ev.currentTarget.classList.add(achar(e.id,d)&&drag&&drag.id!==(achar(e.id,d)||{}).id?"deny":"drop-ok"); },
+                      // só limpa quando o cursor sai de fato da célula (evita piscar sobre filhos)
+                      onDragLeave:function(ev){ if(!ev.currentTarget.contains(ev.relatedTarget)){
+                        ev.currentTarget.classList.remove("drop-ok"); ev.currentTarget.classList.remove("deny"); } },
+                      onDrop:function(ev){ ev.preventDefault();
+                        ev.currentTarget.classList.remove("drop-ok"); ev.currentTarget.classList.remove("deny"); soltar(e.id,d); }},
+                      a? h("div",{className:"chip2 dnd-item", draggable:true,
+                          style:{background:def[4],color:def[0]==="F"?"var(--text)":"#fff"},
+                          title:def[1]+" · "+def[2]+" — arraste para mover, clique para alterar",
+                          onDragStart:function(ev){ setDrag(a); ev.currentTarget.classList.add("dragging");
+                            try{ ev.dataTransfer.effectAllowed="move"; ev.dataTransfer.setData("text/plain",a.id); }catch(x){} },
+                          onDragEnd:function(ev){ ev.currentTarget.classList.remove("dragging"); setDrag(null); },
+                          onClick:function(ev){ ev.stopPropagation();
+                            var r=ev.currentTarget.getBoundingClientRect();
+                            setPop({emp:e.id,dia:d,x:r.left,y:r.bottom+6,atual:a.shift}); }},
+                          def[0], h("small",null,def[1]))
+                       : h("button",{className:"vazio", title:"Adicionar turno",
+                          onClick:function(ev){ ev.stopPropagation();
+                            var r=ev.currentTarget.getBoundingClientRect();
+                            setPop({emp:e.id,dia:d,x:r.left,y:r.bottom+6,atual:null}); }},"+"));
+                  }));
+              })))))),
+      pop? h("div",{style:{position:"fixed",inset:0,zIndex:69},onClick:function(){setPop(null);}},
+        h("div",{className:"turnopop",style:{left:Math.min(pop.x,window.innerWidth-200)+"px",top:pop.y+"px"},onClick:function(e){e.stopPropagation();}},
+          TURNOS.map(function(t){ return h("button",{key:t[0],onClick:function(){definirTurno(pop.emp,pop.dia,t[0]);}},
+            h("span",{className:"sw",style:{background:t[4]}}), h("span",null,t[1]," ",h("span",{style:{color:"var(--faint)",fontWeight:600}},t[2]))); }),
+          pop.atual? h("button",{style:{color:"var(--bad)"},onClick:function(){definirTurno(pop.emp,pop.dia,null);}},
+            h("span",{className:"sw",style:{background:"var(--bad)"}}),"Remover turno") : null)) : null,
+      h("div",{className:"hint"},"Arraste um turno para outro dia ou outra pessoa. Clique no turno para trocar o tipo ou remover; clique no “+” para lançar. O preenchimento automático respeita descanso de 11h, teto semanal e no máximo 6 dias seguidos — e nada é publicado sem a sua confirmação.")
+    );
+  }
+  function EscalasAntiga(props){
     var g=useState(false),gen=g[0],setGen=g[1];
     var b=useState(false),busy=b[0],setBusy=b[1];
     var r=useState(null),result=r[0],setResult=r[1];
@@ -1198,7 +1407,7 @@ window.FLOWSHIFT_CONFIG = {
     );
   }
 
-  var VIEWS={dash:Dashboard,func:Funcionarios,esc:Escalas,ponto:Ponto,banco:Banco,rel:Relatorios,usuarios:Usuarios,ia:IA,cfg:Config};
+  var VIEWS={dash:Dashboard,func:Funcionarios,esc:Escalas2,ponto:Ponto,banco:Banco,rel:Relatorios,usuarios:Usuarios,ia:IA,cfg:Config};
   var NAV=[["dash","Dashboard","grid"],["func","Funcionários","users"],["esc","Escalas","cal"],["ponto","Controle de Ponto","clock","PRO"],["banco","Banco de Horas","scale","PRO"],["rel","Relatórios","doc"]];
   var NAV2=[["ia","Supervisor","spark"],["cfg","Configurações","gear"]];
 
@@ -1216,6 +1425,12 @@ window.FLOWSHIFT_CONFIG = {
     var empresas=(props.store&&props.store.tenants&&props.store.tenants.length)?props.store.tenants:[{id:"",legal_name:"Hospital Vida Ltda"}];
     var units=(props.store&&props.store.units&&props.store.units.length)?props.store.units:DATA.units;
     var u=useState(units[0]?units[0].id:"salvador"),unit=u[0],setUnit=u[1];
+    // Ao trocar de empresa as unidades mudam: se a selecionada não existe mais,
+    // cai na primeira da nova empresa (senão "Gerar escala" apontaria para unidade inválida).
+    useEffect(function(){
+      if(!units.length) return;
+      if(!units.filter(function(x){return x.id===unit;}).length) setUnit(units[0].id);
+    },[units.map(function(x){return x.id;}).join(",")]);
     function unitName(){var f=units.filter(function(x){return x.id===unit;})[0];return f?f.name:(units[0]?units[0].name:"");}
     function navLink(item){
       return h("a",{key:item[0],className:view===item[0]?"active":"",onClick:function(){nav(item[0]);}},
