@@ -119,6 +119,8 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
   var SL={M:["07:00–19:00","Manhã","cM"],T:["13:00–22:00","Tarde","cM"],N:["19:00–07:00","Noite","cN"],P:["Plantão","Plantão","cP"],F:["Folga","Folga","cF"]};
   var KIND={in:"Entrada",break_start:"Início intervalo",break_end:"Fim intervalo",out:"Saída"};
   var initials=function(s){return (s||"").split(" ").map(function(w){return w[0];}).slice(0,2).join("").toUpperCase();};
+  // horário sempre no fuso da Bahia (fatiar a string ISO mostraria UTC)
+  function tzHora(ts){ try{ return new Date(ts).toLocaleTimeString("pt-BR",{timeZone:"America/Bahia",hour:"2-digit",minute:"2-digit",hour12:false}); }catch(e){ return (ts||"").slice(11,16); } }
 
   function Login(props){
     var e=useState("ana@flowshift.local"),email=e[0],setEmail=e[1];
@@ -146,19 +148,22 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
     var ft=useState(""),fturn=ft[0],setFturn=ft[1];
     var fc=useState(""),fcol=fc[0],setFcol=fc[1];
     var sn=useState(false),showN=sn[0],setShowN=sn[1];
+    var cr=useState(null),cor=cr[0],setCor=cr[1];
+    var ch=useState(""),corH=ch[0],setCorH=ch[1];
     function load(){
       sb.from("tenant_memberships").select("employee_id,tenant_id").eq("user_id",props.user.id).maybeSingle().then(function(m){
         var emp=m.data&&m.data.employee_id; if(!emp){ setData({none:true}); return; }
         Promise.all([
           sb.from("employees").select("id,full_name,role_title").eq("id",emp).single(),
           sb.from("assignments").select("id,work_date,shift,hours").eq("employee_id",emp).order("work_date"),
-          sb.from("time_entries").select("nsr,kind,ts").eq("employee_id",emp).order("ts"),
+          sb.from("time_entries").select("id,nsr,kind,ts").eq("employee_id",emp).order("ts"),
           sb.from("swap_requests").select("id,status,requester_id,peer_id").or("requester_id.eq."+emp+",peer_id.eq."+emp),
           sb.from("hour_bank_ledger").select("delta").eq("employee_id",emp),
           sb.from("employee_units").select("unit_id,is_primary").eq("employee_id",emp),
           sb.from("employees").select("id,full_name"),
           sb.from("availability").select("employee_id,accepts_swap"),
-          sb.from("notifications").select("id,title,body,read,created_at").order("created_at",{ascending:false}).limit(30)
+          sb.from("notifications").select("id,title,body,read,created_at").order("created_at",{ascending:false}).limit(30),
+          sb.from("time_corrections").select("id,origin_entry,status,proposed").order("created_at",{ascending:false}).limit(50)
         ]).then(function(r){
           var names={}; (r[6].data||[]).forEach(function(e){names[e.id]=e.full_name;});
           var avm={}; (r[7].data||[]).forEach(function(a){avm[a.employee_id]=a.accepts_swap!==false;});
@@ -166,7 +171,8 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
           var unit=(r[5].data||[]).filter(function(u){return u.is_primary;})[0]||(r[5].data||[])[0];
           setData({ emp:emp, me:r[0].data||{full_name:"Funcionário"}, assigns:r[1].data||[], ponto:r[2].data||[],
             swaps:r[3].data||[], saldo:Math.round((r[4].data||[]).reduce(function(a,x){return a+Number(x.delta);},0)),
-            unit:unit&&unit.unit_id, names:names, colleagues:colleagues, notifs:(r[8]&&r[8].data)||[] });
+            unit:unit&&unit.unit_id, names:names, colleagues:colleagues, notifs:(r[8]&&r[8].data)||[],
+            corr:(r[9]&&r[9].data)||[] });
         });
       });
     }
@@ -186,6 +192,19 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
     function solicitar(){ if(!fturn||!fcol){toast("Escolha turno e colega");return;}
       sb.functions.invoke("flowshift-troca",{body:{action:"request",from_assignment:fturn,peer_id:fcol}}).then(function(r){
         var x=(r&&r.data)||{}; if(x.ok){toast("Solicitação enviada ao ADM");setFturn("");setFcol("");load();} else toast("Erro: "+(x.error||""));});
+    }
+    function diaLocal(ts){ try{ return new Date(ts).toLocaleDateString("en-CA",{timeZone:"America/Bahia"}); }catch(e){ return (ts||"").slice(0,10); } }
+    function abrirCorrecao(p){ setCor(p); setCorH(tzHora(p.ts)); }
+    function enviarCorrecao(){
+      if(!cor){ return; }
+      if(!/^\d{2}:\d{2}$/.test(corH||"")){ toast("Informe o horário correto"); return; }
+      var iso=diaLocal(cor.ts)+"T"+corH+":00-03:00";
+      if(new Date(iso).getTime()===new Date(cor.ts).getTime()){ toast("Esse já é o horário registrado"); return; }
+      sb.functions.invoke("flowshift-correcao",{body:{action:"request",origin_entry:cor.id,proposed:{ts:iso,kind:cor.kind}}}).then(function(r){
+        var x=(r&&r.data)||{};
+        if(x.ok){ toast("Correção enviada para o gestor"); setCor(null); setCorH(""); load(); }
+        else toast("Erro: "+(x.error||""));
+      }).catch(function(){ toast("Falha ao enviar"); });
     }
     function openBell(){ setShowN(true);
       var uns=(data.notifs||[]).filter(function(n){return !n.read;});
@@ -241,7 +260,23 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
               btn("Fim intervalo","break_end",punched,bater), btn("Saída","out",punched,bater))),
           h("h2",{className:"sec"},"Marcações de hoje"),
           h("div",{className:"card glass",style:{padding:"4px 14px"}}, data.ponto.length? data.ponto.map(function(p,i){
-            return h("div",{className:"row",key:i}, h("div",{className:"db"},h("b",{style:{fontSize:"12px"}},(p.ts||"").slice(11,16))), h("div",{className:"di"},h("b",null,KIND[p.kind]||p.kind),h("span",null,"NSR "+p.nsr)), h("span",{className:"chip cF"},"✓"));}) : h("div",{className:"empty"},"Nenhuma marcação ainda."))
+            var c=(data.corr||[]).filter(function(x){return x.origin_entry===p.id;})[0];
+            var chip = c
+              ? (c.status==="pending"? ["cP","correção pendente"] : (c.status==="approved"? ["cF","corrigido"] : ["cN","correção recusada"]))
+              : null;
+            return h("div",{className:"row",key:i},
+              h("div",{className:"db"},h("b",{style:{fontSize:"12px"}}, tzHora(p.ts))),
+              h("div",{className:"di"},h("b",null,KIND[p.kind]||p.kind),h("span",null,"NSR "+p.nsr)),
+              chip? h("span",{className:"chip "+chip[0]},chip[1])
+                  : h("button",{className:"mini",onClick:function(){abrirCorrecao(p);}},"Corrigir"));
+          }) : h("div",{className:"empty"},"Nenhuma marcação ainda.")),
+          cor? h("div",{className:"card glass",style:{borderColor:"var(--primary-2)"}},
+            h("div",{style:{fontWeight:800,fontSize:"13px",marginBottom:"4px"}},"Corrigir "+(KIND[cor.kind]||cor.kind).toLowerCase()),
+            h("div",{style:{fontSize:"11.5px",color:"var(--muted)",marginBottom:"10px"}},"Registrado às "+tzHora(cor.ts)+". Informe o horário correto — o gestor precisa aprovar."),
+            h("input",{className:"inp",type:"time",value:corH,onChange:function(e){setCorH(e.target.value);}}),
+            h("div",{className:"acts"},
+              h("button",{className:"mini ok",onClick:enviarCorrecao},"Enviar pedido"),
+              h("button",{className:"mini",onClick:function(){setCor(null);}},"Cancelar"))) : null
         ),
         // TROCAS
         h("div",{className:"view"+(tab==="trocas"?" on":"")},
