@@ -360,6 +360,7 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
   background:linear-gradient(135deg,var(--primary),var(--primary-2));
   box-shadow:0 12px 34px rgba(0,0,0,.55)}
 .fs-update.on{transform:translateY(0)}
+.fs-update span{display:block;font-size:11px;font-weight:400;opacity:.85;margin-top:3px;line-height:1.35}
 .fs-update:disabled{opacity:.75;cursor:default}
 @media(max-width:1100px){ .fs-update{bottom:calc(76px + env(safe-area-inset-bottom))} }
 @media(min-width:1101px){ .fs-update{left:auto;right:20px;max-width:380px} }
@@ -1646,31 +1647,42 @@ window.FLOWSHIFT_CONFIG = {
      Antes só havia reg.update() no registro inicial. Num atalho de tela inicial
      o app RETOMA do background em vez de abrir do zero, então a versão nova
      nunca era procurada. O gatilho que faltava: checar ao voltar para o foco. */
+  /* Atualização AUTOMÁTICA (padrão INPERSON/VIZIO): o app se atualiza sozinho.
+     Só espera o toque do usuário quando recarregar destruiria trabalho em
+     andamento (formulário sendo digitado, modal aberto). */
   if("serviceWorker" in navigator){ window.addEventListener("load",function(){
     var _reg=null, _avisou=false;
+    function ehSeguroRecarregar(){
+      if(document.querySelector(".fs-sheet-bg,.overlay,.modal,.sheet")) return false;
+      var a=document.activeElement;
+      if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+      return true;
+    }
+    function aplicarAgora(){
+      try{ sessionStorage.setItem("fs_atualizou","1"); }catch(x){}
+      try{ if(_reg&&_reg.waiting) _reg.waiting.postMessage({type:"PULAR_ESPERA"}); }catch(x){}
+      setTimeout(function(){ location.reload(); },1500);
+    }
     function avisarNovaVersao(){
       if(_avisou) return; _avisou=true;
       var b=document.createElement("button");
       b.className="fs-update";
-      b.innerHTML='✨ Nova versão do FlowShift — <b>tocar para atualizar</b>';
-      b.onclick=function(){
-        try{ sessionStorage.setItem("fs_atualizou","1"); }catch(x){}
-        try{ if(_reg&&_reg.waiting) _reg.waiting.postMessage({type:"PULAR_ESPERA"}); }catch(x){}
-        b.textContent="Atualizando…"; b.disabled=true;
-        setTimeout(function(){ location.reload(); },1200);
-      };
+      b.innerHTML='✨ Nova versão pronta — <b>toque para aplicar</b>'
+        +'<span>Não apliquei agora para não perder o que você está preenchendo</span>';
+      b.onclick=function(){ b.textContent="Atualizando…"; b.disabled=true; aplicarAgora(); };
       document.body.appendChild(b);
       requestAnimationFrame(function(){ b.classList.add("on"); });
     }
+    function novaVersaoPronta(){ if(ehSeguroRecarregar()) aplicarAgora(); else avisarNovaVersao(); }
     var _hadCtrl=!!navigator.serviceWorker.controller, _refreshing=false;
     navigator.serviceWorker.addEventListener("controllerchange",function(){ if(_refreshing)return; _refreshing=true; if(_hadCtrl) location.reload(); });
     navigator.serviceWorker.register("sw.js").then(function(reg){
       _reg=reg;
-      if(reg.waiting && navigator.serviceWorker.controller) avisarNovaVersao();
+      if(reg.waiting && navigator.serviceWorker.controller) novaVersaoPronta();
       reg.addEventListener("updatefound",function(){
         var novo=reg.installing; if(!novo) return;
         novo.addEventListener("statechange",function(){
-          if(novo.state==="installed" && navigator.serviceWorker.controller) avisarNovaVersao();
+          if(novo.state==="installed" && navigator.serviceWorker.controller) novaVersaoPronta();
         });
       });
       try{ reg.update(); }catch(x){}
@@ -1680,7 +1692,7 @@ window.FLOWSHIFT_CONFIG = {
       window.addEventListener("online",function(){ if(_reg){ try{ _reg.update(); }catch(x){} } });
     }).catch(function(){});
     try{ if(sessionStorage.getItem("fs_atualizou")){ sessionStorage.removeItem("fs_atualizou");
-      setTimeout(function(){ toast("Você está atualizado ✓"); },600); } }catch(x){}
+      setTimeout(function(){ toast("App atualizado ✓"); },600); } }catch(x){}
   }); }
 })();
 
