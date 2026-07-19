@@ -56,6 +56,26 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 /* ===== LOGIN ===== */
 .login{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:24px}
 .login .card{width:100%;max-width:410px;border-radius:var(--r-lg);padding:34px 30px}
+/* ===== Barra superior: empresa à esquerda, usuário à direita (padrão da casa) ===== */
+.topbar{position:sticky;top:0;z-index:35;display:flex;align-items:center;gap:12px;
+  padding:10px 16px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%)}
+.topbar .tenantsel{display:flex;align-items:center;gap:8px;min-width:0}
+.topbar .tenantsel select{background:var(--chip);border:1px solid var(--line);border-radius:11px;
+  padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;font-weight:700;
+  outline:none;max-width:min(46vw,300px);cursor:pointer}
+.topbar .tenantsel .lb{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);font-weight:800}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.topbar .fs-usermenu{margin:0}
+.topbar .fs-uchip{background:var(--glass-2);border:1px solid var(--glass-brd);border-radius:12px;padding:5px 10px}
+@media(max-width:1100px){
+  .topbar{padding:8px 12px;gap:8px}
+  .topbar .tenantsel .lb{display:none}
+  .topbar .tenantsel select{font-size:12.5px;max-width:52vw}
+  .topbar .fs-uchip .who{display:none}
+}
+
 /* ===== Formulário / modal de cadastro ===== */
 .fs-inp{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none}
 .fs-inp:focus{border-color:var(--primary-2);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
@@ -624,10 +644,10 @@ window.FLOWSHIFT_CONFIG = {
         h("div",{className:"fs-grid3"},
           h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Vínculo"),
             h("select",{className:"fs-inp",value:f.contract_type,onChange:function(e){set("contract_type",e.target.value);}},
-              [["clt","CLT"],["pj","PJ"],["temporario","Temporário"],["terceirizado","Terceirizado"],["estagio","Estágio"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
+              [["clt","CLT"],["pj","PJ"],["temporario","Temporário"],["terceirizado","Terceirizado"],["folguista","Folguista"],["estagiario","Estagiário"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
           h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Situação"),
             h("select",{className:"fs-inp",value:f.status,onChange:function(e){set("status",e.target.value);}},
-              [["ativo","Ativo"],["ferias","Férias"],["afastado","Afastado"],["desligado","Desligado"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
+              [["ativo","Ativo"],["ferias","Férias"],["licenca","Licença"],["afastado","Afastado"],["inativo","Inativo"],["desligado","Desligado"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
           h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Admissão"),
             h("input",{className:"fs-inp",type:"date",value:f.admitted_at||"",onChange:function(e){set("admitted_at",e.target.value);}}))),
         h("div",{className:"fs-grid3"},
@@ -944,14 +964,76 @@ window.FLOWSHIFT_CONFIG = {
       (!res&&!busy)? h("div",{className:"hint"},"Escolha a competência e o funcionário, depois clique em Gerar. O PDF sai no padrão legal (Portaria 671/2021)."):null
     );
   }
-  function IA(){
-    return h("div",null, h("div",{className:"stub"},
-      h("div",{className:"ic glass"}, Icon("spark")),
-      h("div",{className:"locknote"},"▲ Módulo do plano Enterprise"),
-      h("h2",null,"IA — Supervisor Inteligente"),
-      h("p",null,"Detecção de conflitos, previsão de falta de pessoal, análise de produtividade e insights explicáveis. A IA nunca toma decisões irreversíveis — apenas sugere, e o administrador confirma."),
-      h("button",{className:"tbtn",onClick:function(){toast("Solicitação de upgrade enviada");}},"Fazer upgrade")
-    ));
+  // ===== Supervisor: insights calculados dos dados reais (sem IA externa, sem custo) =====
+  function insights(st){
+    var out=[];
+    if(!st||!st.employees) return out;
+    var hoje=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
+    var emps=st.employees, ativos=emps.filter(function(e){return e.status==="ativo";});
+    var nome={}; emps.forEach(function(e){nome[e.id]=e.full_name;});
+
+    // 1) quem está sem bater ponto hoje, estando escalado
+    var escaladosHoje=(st.assignsHoje||[]).filter(function(a){return a.employee_id;});
+    var bateu={}; (st.ponto||[]).forEach(function(p){ if(p.kind==="in") bateu[p.employee_id]=1; });
+    var faltando=escaladosHoje.filter(function(a){return !bateu[a.employee_id];});
+    if(faltando.length) out.push(["var(--bad)","Escalados sem ponto hoje",
+      faltando.map(function(a){return nome[a.employee_id]||"—";}).slice(0,5).join(", ")+
+      (faltando.length>5?(" e mais "+(faltando.length-5)):"")+". Confirme presença antes que vire falta.",
+      "ponto"]);
+
+    // 2) banco de horas em extremos (risco trabalhista e de custo)
+    var altos=(st.banco||[]).filter(function(b){ var v=parseInt(b[1],10); return v>=20; });
+    var negativos=(st.banco||[]).filter(function(b){ var v=parseInt(b[1],10); return v<=-10; });
+    if(altos.length) out.push(["var(--warn)","Banco de horas alto",
+      altos.map(function(b){return b[0]+" ("+b[1]+")";}).join(", ")+". Saldo elevado vira passivo: programe folga ou pagamento.","banco"]);
+    if(negativos.length) out.push(["var(--info)","Saldo negativo relevante",
+      negativos.map(function(b){return b[0]+" ("+b[1]+")";}).join(", ")+". Verifique faltas ou jornada abaixo do previsto.","banco"]);
+
+    // 3) sequência longa de dias trabalhados (limite legal: 6 dias, DSR)
+    var porEmp={}; (st.assigns||[]).forEach(function(a){ if(!a.employee_id||a.shift==="F") return;
+      (porEmp[a.employee_id]=porEmp[a.employee_id]||[]).push(a.work_date); });
+    var seqs=[];
+    Object.keys(porEmp).forEach(function(id){
+      var ds=porEmp[id].slice().sort(), melhor=1, atual=1;
+      for(var i=1;i<ds.length;i++){
+        var dif=(new Date(ds[i]+"T12:00:00")-new Date(ds[i-1]+"T12:00:00"))/86400000;
+        if(dif===1){ atual++; if(atual>melhor) melhor=atual; } else if(dif>1) atual=1;
+      }
+      if(melhor>=6) seqs.push((nome[id]||"—")+" ("+melhor+" dias)");
+    });
+    if(seqs.length) out.push(["var(--bad)","Risco de descanso semanal (DSR)",
+      seqs.join(", ")+". A CLT exige folga a cada 7 dias — revise a escala.","esc"]);
+
+    // 4) pendências paradas
+    var np=(st.pend||[]).length;
+    if(np>=3) out.push(["var(--warn)","Fila de aprovações",
+      np+" pendências aguardando decisão. Trocas paradas viram buraco de cobertura na véspera.","dash"]);
+
+    // 5) cobertura futura
+    var futuros=(st.assigns||[]).filter(function(a){return a.work_date>hoje;});
+    var vagos=futuros.filter(function(a){return !a.employee_id;});
+    if(vagos.length) out.push(["var(--bad)","Turnos futuros sem cobertura",
+      vagos.length+" turno(s) publicados sem ninguém atribuído.","esc"]);
+
+    if(!out.length) out.push(["var(--good)","Nenhum risco detectado",
+      "Cobertura, banco de horas, descanso semanal e fila de aprovações estão dentro do esperado.",null]);
+    return out;
+  }
+  function IA(props){
+    var st=props&&props.store;
+    var lista=insights(st);
+    var live=!!(st&&st.employees);
+    return h("div",null,
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Supervisor"),
+        h("div",{className:"sub"},"Análise dos seus dados · sem envio para fora"+(live?" · ● ao vivo":"")))),
+      h("div",{className:"panel glass"},
+        h("div",{className:"ph"}, h("h3",null,"O que exige sua atenção"), h("span",{className:"tag ai"},lista.length+" ponto(s)")),
+        lista.map(function(a,i){ return h("div",{className:"alert",key:i,style:a[3]?{cursor:"pointer"}:null,
+          onClick:a[3]?function(){props.go(a[3]);}:null},
+          h("span",{className:"ab",style:{background:a[0],color:a[0]}}),
+          h("div",null, h("b",null,a[1]), h("p",null,a[2]), a[3]? h("div",{style:{color:"var(--primary-2)",fontSize:"11.5px",fontWeight:800,marginTop:"5px"}},"Abrir →"):null)); })),
+      h("div",{className:"hint"},"Os alertas são calculados no seu navegador a partir dos dados da empresa ativa — nada é enviado a serviços externos. O Supervisor apenas sugere; nenhuma ação é tomada automaticamente.")
+    );
   }
   function Config(props){
     return h("div",null,
@@ -983,6 +1065,9 @@ window.FLOWSHIFT_CONFIG = {
     var rl=useState(isMaster?"admin":(u.role||"employee")),role=rl[0],setRole=rl[1];
     var em=useState(u.employee_id||""),emp=em[0],setEmp=em[1];
     var pw=useState(""),senha=pw[0],setSenha=pw[1];
+    var ph=useState(u.photo||""),foto=ph[0],setFoto=ph[1];
+    function onFoto(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f) return;
+      fsCompress(f).then(setFoto).catch(function(){toast("Imagem inválida");}); }
     var bs=useState(false),busy=bs[0],setBusy=bs[1];
     var cf=useState(false),confirma=cf[0],setConfirma=cf[1];
     function chamar(body){ return sb.functions.invoke("flowshift-admin-usuarios",{body:body}).then(function(r){ return (r&&r.data)||{}; }); }
@@ -992,6 +1077,7 @@ window.FLOWSHIFT_CONFIG = {
       if(!isMaster && role!==u.role) fila.push({action:"role",user_id:u.user_id,role:role});
       if((emp||"")!==(u.employee_id||"")) fila.push({action:"link",user_id:u.user_id,employee_id:emp||null});
       if(senha) fila.push({action:"senha",user_id:u.user_id,password:senha});
+      if((foto||"")!==(u.photo||"")) fila.push({action:"foto",user_id:u.user_id,photo:foto||null});
       if(!fila.length){ setBusy(false); props.onClose(); return; }
       (function proximo(i){
         if(i>=fila.length){ setBusy(false); toast("Usuário atualizado"); props.onSaved(); return; }
@@ -1012,10 +1098,14 @@ window.FLOWSHIFT_CONFIG = {
     return h("div",{className:"fs-modal-bg",onClick:function(ev){ if(ev.target===ev.currentTarget) props.onClose(); }},
       h("div",{className:"fs-modal glass",style:{maxWidth:"470px"}},
         h("div",{style:{display:"flex",alignItems:"center",gap:"12px",marginBottom:"18px"}},
-          fsAvatar({name:u.name},48),
-          h("div",{style:{minWidth:0}},
+          fsAvatar({name:u.name,photo:foto},56),
+          h("div",{style:{minWidth:0,flex:1}},
             h("div",{style:{fontWeight:800,fontSize:"15px",overflowWrap:"anywhere"}},u.name||u.email),
-            h("div",{style:{fontSize:"12px",color:"var(--muted)",overflowWrap:"anywhere"}},u.email))),
+            h("div",{style:{fontSize:"12px",color:"var(--muted)",overflowWrap:"anywhere",marginBottom:"7px"}},u.email),
+            h("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap"}},
+              h("label",{className:"rowbtn",style:{cursor:"pointer"}},"Trocar foto",
+                h("input",{type:"file",accept:"image/*",style:{display:"none"},onChange:onFoto})),
+              foto? h("button",{className:"rowbtn",onClick:function(){setFoto("");}},"Remover") : null))),
         isMaster? h("div",{style:{background:"color-mix(in srgb,var(--violet) 14%,transparent)",color:"var(--violet)",borderRadius:"10px",padding:"10px 12px",fontSize:"12px",marginBottom:"14px",lineHeight:1.5}},
           "Este é o usuário master — o perfil dele não pode ser alterado nem excluído por segurança.") : null,
         h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Perfil de acesso"),
@@ -1110,7 +1200,7 @@ window.FLOWSHIFT_CONFIG = {
 
   var VIEWS={dash:Dashboard,func:Funcionarios,esc:Escalas,ponto:Ponto,banco:Banco,rel:Relatorios,usuarios:Usuarios,ia:IA,cfg:Config};
   var NAV=[["dash","Dashboard","grid"],["func","Funcionários","users"],["esc","Escalas","cal"],["ponto","Controle de Ponto","clock","PRO"],["banco","Banco de Horas","scale","PRO"],["rel","Relatórios","doc"]];
-  var NAV2=[["ia","IA — Supervisor","spark","ENT"],["cfg","Configurações","gear"]];
+  var NAV2=[["ia","Supervisor","spark"],["cfg","Configurações","gear"]];
 
   /* Barra inferior do celular: 4 principais + "Mais" (o menu tem 6–9 itens).
      Padrão INPERSON/VIZIO — ver VIZIO Money e Qualidade ISO. */
@@ -1123,6 +1213,7 @@ window.FLOWSHIFT_CONFIG = {
     var mo=useState(false),mOpen=mo[0],setMOpen=mo[1];
     function nav(x){ if(x!==view){ setHist(hist.concat([view])); setView(x); } setMOpen(false); }
     function goBack(){ if(hist.length){ setView(hist[hist.length-1]); setHist(hist.slice(0,-1)); } else { setView("dash"); } }
+    var empresas=(props.store&&props.store.tenants&&props.store.tenants.length)?props.store.tenants:[{id:"",legal_name:"Hospital Vida Ltda"}];
     var units=(props.store&&props.store.units&&props.store.units.length)?props.store.units:DATA.units;
     var u=useState(units[0]?units[0].id:"salvador"),unit=u[0],setUnit=u[1];
     function unitName(){var f=units.filter(function(x){return x.id===unit;})[0];return f?f.name:(units[0]?units[0].name:"");}
@@ -1140,10 +1231,16 @@ window.FLOWSHIFT_CONFIG = {
         h("nav",{className:"nav"}, NAV.map(navLink)),
         h("div",{className:"nav-lbl"},"Avançado"),
         h("nav",{className:"nav"}, ((DEMO||(props.store&&props.store.isMaster))?[["usuarios","Usuários","users"]]:[]).concat(NAV2).map(navLink)),
-        h("div",{className:"side-foot"},
-          h(FsUserMenu,{user:props.user,setUser:props.setUser,theme:props.theme,setTheme:props.setTheme,onLogout:props.onLogout}))
       ),
       h("main",{className:"main"},
+        h("div",{className:"topbar"},
+          h("div",{className:"tenantsel"}, h("span",{className:"lb"},"Empresa"),
+            (empresas.length>1)
+              ? h("select",{value:props.tenant||"",title:"Trocar de empresa",onChange:function(e){ if(props.setTenant) props.setTenant(e.target.value); }},
+                  empresas.map(function(t){return h("option",{key:t.id,value:t.id},t.legal_name);}))
+              : h("b",{style:{fontSize:"13.5px"}}, (empresas[0]&&empresas[0].legal_name)||"—")),
+          h("div",{className:"right"},
+            h(FsUserMenu,{user:props.user,setUser:props.setUser,theme:props.theme,setTheme:props.setTheme,onLogout:props.onLogout}))),
         view!=="dash" ? h("button",{className:"backbtn glass",onClick:goBack}, Icon("back"), h("span",null,"Voltar")) : null,
         h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store,reload:props.reload})),
       (function(){
@@ -1234,6 +1331,19 @@ window.FLOWSHIFT_CONFIG = {
     var stt=useState(null),store=stt[0],setStore=stt[1];
     var rf=useState(0),refresh=rf[0],setRefresh=rf[1];
     function reload(){ setRefresh(refresh+1); }
+    // Troca de empresa: grava a empresa ativa (o current_tenant() do banco passa a
+    // respeitá-la) e recarrega a store inteira já no contexto da nova empresa.
+    function trocarEmpresa(tid){
+      if(!tid||!sb) return;
+      sb.auth.getUser().then(function(ur){
+        var uid=ur&&ur.data&&ur.data.user&&ur.data.user.id; if(!uid) return;
+        return sb.from("active_tenant").upsert({user_id:uid,tenant_id:tid,updated_at:new Date().toISOString()},{onConflict:"user_id"})
+          .then(function(r){
+            if(r&&r.error){ toast("Erro ao trocar de empresa: "+r.error.message); return; }
+            setStore(null); setRefresh(refresh+1); toast("Empresa alterada");
+          });
+      }).catch(function(){ toast("Falha ao trocar de empresa"); });
+    }
     function setTheme(t){setThemeS(t);document.documentElement.setAttribute("data-theme",t);}
     useEffect(function(){
       if(user && !DEMO && sb){
@@ -1243,10 +1353,12 @@ window.FLOWSHIFT_CONFIG = {
           sb.from("time_entries").select("nsr,kind,ts,employee_id").order("ts",{ascending:true}),
           sb.from("hour_bank_ledger").select("employee_id,delta"),
           sb.from("masters").select("user_id"),
-          sb.from("assignments").select("employee_id,work_date,shift,hours").order("work_date",{ascending:false}).limit(12),
+          sb.from("assignments").select("employee_id,work_date,shift,hours").order("work_date",{ascending:false}).limit(400),
           sb.from("swap_requests").select("id,status,requester_id,peer_id").order("created_at",{ascending:false}).limit(8),
           sb.from("time_corrections").select("id,status,requested_by").order("created_at",{ascending:false}).limit(8),
-          sb.from("holidays").select("day,name,layer,region,optional").order("day",{ascending:true})
+          sb.from("holidays").select("day,name,layer,region,optional").order("day",{ascending:true}),
+          sb.from("tenants").select("id,legal_name,plan").order("legal_name"),
+          sb.from("active_tenant").select("tenant_id").maybeSingle()
         ]).then(function(res){
           var units=(res[0].data||[]).map(function(u){return {id:u.id,name:u.name,city:u.city_ibge};});
           var holidays=(res[8]&&res[8].data)||[];
@@ -1275,7 +1387,11 @@ window.FLOWSHIFT_CONFIG = {
             ["Unidades",String(units.length),"","var(--violet)","flat","ativas",Math.min(100,units.length*20)],
             ["Escala","publicada","","var(--good)","flat","semana atual",100]
           ];
-          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, holidays:holidays, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
+          var hojeStr=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
+          var assignsHoje=assigns.filter(function(a){return a.work_date===hojeStr&&a.shift!=="F";});
+          var tenants=(res[9]&&res[9].data)||[];
+          var ativo=(res[10]&&res[10].data&&res[10].data.tenant_id)||null;
+          setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, holidays:holidays, assigns:assigns, assignsHoje:assignsHoje, tenants:tenants, tenantAtivo:ativo, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
     },[user,refresh]);
@@ -1303,7 +1419,8 @@ window.FLOWSHIFT_CONFIG = {
     },[user]);
     function logout(){ try{ if(sb) sb.auth.signOut(); sessionStorage.removeItem("fs_force_desktop"); }catch(e){} setStore(null); setUser(null); }
     if(!user) return h(Login,{onLogin:setUser});
-    return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,reload:reload,onLogout:logout});
+    return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,reload:reload,
+      tenant:(store&&(store.tenantAtivo||((store.tenants||[])[0]||{}).id))||"",setTenant:trocarEmpresa,onLogout:logout});
   }
 
   var root=document.getElementById("root");
