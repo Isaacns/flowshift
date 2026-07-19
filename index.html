@@ -56,6 +56,18 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
 /* ===== LOGIN ===== */
 .login{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:24px}
 .login .card{width:100%;max-width:410px;border-radius:var(--r-lg);padding:34px 30px}
+/* ===== Formulário / modal de cadastro ===== */
+.fs-inp{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none}
+.fs-inp:focus{border-color:var(--primary-2);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
+.fs-lbl{font-size:11px;color:var(--muted);margin-bottom:5px;display:block;font-weight:700}
+.fs-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fs-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media (max-width:760px){.fs-grid2,.fs-grid3{grid-template-columns:1fr}}
+.fs-fld{margin-bottom:12px}
+.rowbtn{background:none;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer}
+.rowbtn:hover{border-color:var(--primary-2);color:var(--primary-2)}
+.rowbtn.danger:hover{border-color:var(--bad);color:var(--bad)}
+
 /* ===== AURA — marca viva (padrão INPERSON/VIZIO) =====
    Mesmos tempos e curvas do Sistema INPERSON (ip-breathe-soft / ip-glow / ip-aura-breathe),
    com a cor adaptada ao Azul VIZIO. Nenhum elemento de marca fica estático. */
@@ -513,7 +525,7 @@ window.FLOWSHIFT_CONFIG = {
       setDone(label);
       if(p[6] && !DEMO && sb){
         if(p[7]==="swap"){ sb.functions.invoke("flowshift-troca",{body:{swap_id:p[6],action:action==="approve"?"adm_approve":"adm_reject"}}).then(function(r){var d=(r&&r.data)||{};toast(d.ok?("Troca: "+d.status):("Erro: "+(d.error||"")));}).catch(function(){toast("Falha ao processar");}); }
-        else { sb.from("time_corrections").update({status:action==="approve"?"approved":"rejected"}).eq("id",p[6]).then(function(r){toast((r&&r.error)?("Erro: "+r.error.message):("Correção "+label));}); }
+        else { sb.functions.invoke("flowshift-correcao",{body:{id:p[6],action:action}}).then(function(r){var d=(r&&r.data)||{};toast(d.ok?("Correção "+label):("Erro: "+(d.error||"")));}).catch(function(){toast("Falha ao processar");}); }
       } else { toast("Solicitação: "+label); }
     }
     var acts = p[5]
@@ -525,26 +537,110 @@ window.FLOWSHIFT_CONFIG = {
         done? h("div",{style:{color:"var(--good)",fontWeight:800,fontSize:"11px",marginTop:"6px"}}, done+" ✓") : h("div",{className:"acts"},acts))
     );
   }
+  function EmpForm(props){
+    var e0=props.emp||{};
+    var st=useState({full_name:e0.full_name||"",role_title:e0.role_title||"",dept:e0.dept||"",
+      contract_type:e0.contract_type||"clt",status:e0.status||"ativo",cpf:e0.cpf||"",phone:e0.phone||"",
+      email:e0.email||"",admitted_at:e0.admitted_at||"",unit_id:props.unitAtual||"",accepts_swap:true});
+    var f=st[0],setF=st[1];
+    var bs=useState(false),busy=bs[0],setBusy=bs[1];
+    function set(k,v){ var n={}; n[k]=v; setF(Object.assign({},f,n)); }
+    function salvar(){
+      if(!f.full_name.trim()){ toast("Informe o nome do funcionário"); return; }
+      if(!sb){ toast("Requer modo produção"); return; }
+      setBusy(true);
+      var rec={ full_name:f.full_name.trim(), role_title:f.role_title||null, dept:f.dept||null,
+        contract_type:f.contract_type, status:f.status, cpf:f.cpf||null, phone:f.phone||null,
+        email:f.email||null, admitted_at:f.admitted_at||null };
+      var op = e0.id
+        ? sb.from("employees").update(rec).eq("id",e0.id).select("id").single()
+        : sb.from("employees").insert(rec).select("id").single();
+      op.then(function(r){
+        if(r.error){ setBusy(false); toast("Erro: "+r.error.message); return; }
+        var id=r.data.id;
+        var extras=[];
+        if(f.unit_id) extras.push(sb.from("employee_units").upsert({employee_id:id,unit_id:f.unit_id,is_primary:true},{onConflict:"employee_id,unit_id"}));
+        if(!e0.id) extras.push(sb.from("availability").upsert({employee_id:id,accepts_swap:f.accepts_swap!==false},{onConflict:"employee_id"}));
+        Promise.all(extras).then(function(res){
+          setBusy(false);
+          var err=(res||[]).filter(function(x){return x&&x.error;})[0];
+          if(err) toast("Funcionário salvo, mas: "+err.error.message);
+          else toast(e0.id?"Funcionário atualizado":"Funcionário cadastrado");
+          props.onSaved();
+        }).catch(function(){ setBusy(false); toast("Funcionário salvo (vínculos parciais)"); props.onSaved(); });
+      });
+    }
+    return h("div",{className:"fs-modal-bg",onClick:function(ev){ if(ev.target===ev.currentTarget) props.onClose(); }},
+      h("div",{className:"fs-modal glass",style:{maxWidth:"620px"}},
+        h("h3",{style:{margin:"0 0 16px"}}, e0.id?"Editar funcionário":"Novo funcionário"),
+        h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Nome completo *"),
+          h("input",{className:"fs-inp",value:f.full_name,onChange:function(e){set("full_name",e.target.value);}})),
+        h("div",{className:"fs-grid2"},
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Cargo"),
+            h("input",{className:"fs-inp",value:f.role_title,placeholder:"Enfermeira, Técnico...",onChange:function(e){set("role_title",e.target.value);}})),
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Setor"),
+            h("input",{className:"fs-inp",value:f.dept,onChange:function(e){set("dept",e.target.value);}}))),
+        h("div",{className:"fs-grid3"},
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Vínculo"),
+            h("select",{className:"fs-inp",value:f.contract_type,onChange:function(e){set("contract_type",e.target.value);}},
+              [["clt","CLT"],["pj","PJ"],["temporario","Temporário"],["terceirizado","Terceirizado"],["estagio","Estágio"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Situação"),
+            h("select",{className:"fs-inp",value:f.status,onChange:function(e){set("status",e.target.value);}},
+              [["ativo","Ativo"],["ferias","Férias"],["afastado","Afastado"],["desligado","Desligado"]].map(function(o){return h("option",{key:o[0],value:o[0]},o[1]);}))),
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Admissão"),
+            h("input",{className:"fs-inp",type:"date",value:f.admitted_at||"",onChange:function(e){set("admitted_at",e.target.value);}}))),
+        h("div",{className:"fs-grid3"},
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"CPF"),
+            h("input",{className:"fs-inp",value:f.cpf,onChange:function(e){set("cpf",e.target.value);}})),
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Telefone"),
+            h("input",{className:"fs-inp",value:f.phone,onChange:function(e){set("phone",e.target.value);}})),
+          h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"E-mail"),
+            h("input",{className:"fs-inp",value:f.email,onChange:function(e){set("email",e.target.value);}}))),
+        h("div",{className:"fs-fld"}, h("label",{className:"fs-lbl"},"Unidade principal"),
+          h("select",{className:"fs-inp",value:f.unit_id,onChange:function(e){set("unit_id",e.target.value);}},
+            [h("option",{key:"",value:""},"— sem unidade —")].concat((props.units||[]).map(function(u){return h("option",{key:u.id,value:u.id},u.name);})))),
+        !e0.id? h("label",{style:{display:"flex",alignItems:"center",gap:"8px",fontSize:"12.5px",color:"var(--muted)",marginBottom:"14px",cursor:"pointer"}},
+          h("input",{type:"checkbox",checked:f.accepts_swap!==false,onChange:function(e){set("accepts_swap",e.target.checked);}}),
+          "Disponível para trocas de turno") : null,
+        h("div",{style:{display:"flex",gap:"8px",marginTop:"6px"}},
+          h("button",{className:"tbtn primary",disabled:busy,onClick:salvar,style:{flex:1,justifyContent:"center"}}, busy?"Salvando…":"Salvar"),
+          h("button",{className:"tbtn",disabled:busy,onClick:props.onClose},"Cancelar"))
+      ));
+  }
   function Funcionarios(props){
-    var live = props && props.store && props.store.employees && props.store.employees.length;
-    var rows = live
-      ? props.store.employees.map(function(e){ return [e.full_name, e.role_title||"—", (e.contract_type||"clt").toUpperCase(), cap(e.status), "—"]; })
-      : DATA.func;
+    var st=props&&props.store;
+    var live = st && st.employees && st.employees.length;
+    var q=useState(""),busca=q[0],setBusca=q[1];
+    var fm=useState(null),form=fm[0],setForm=fm[1];
+    var emps = live ? st.employees : [];
+    var filtrados = emps.filter(function(e){
+      var t=(busca||"").toLowerCase(); if(!t) return true;
+      return ((e.full_name||"")+" "+(e.role_title||"")+" "+(e.dept||"")).toLowerCase().indexOf(t)>=0;
+    });
+    var ativos = emps.filter(function(e){return e.status==="ativo";}).length;
+    function recarregar(){ setForm(null); if(props.reload) props.reload(); }
     return h("div",null,
-      h("div",{className:"top"}, h("div",null,h("h1",null,"Funcionários"),h("div",{className:"sub"}, (live?rows.length+" funcionários · ● ao vivo (Supabase)":"7 ativos · Hospital Vida — Salvador"))),
-        h("div",{className:"search glass"}, Icon("search"), h("input",{placeholder:"Buscar..."})),
-        h("button",{className:"tbtn",onClick:function(){toast("Novo funcionário");}}, Icon("users")," Novo")),
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Funcionários"),
+        h("div",{className:"sub"}, live? (emps.length+" cadastrados · "+ativos+" ativos · ● ao vivo") : "Nenhum funcionário cadastrado")),
+        h("div",{className:"search glass"}, Icon("search"),
+          h("input",{placeholder:"Buscar nome, cargo, setor...",value:busca,onChange:function(e){setBusca(e.target.value);}})),
+        h("button",{className:"tbtn",onClick:function(){ if(DEMO||!sb){toast("Requer modo produção");return;} setForm({}); }}, Icon("users")," Novo")),
       h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
         h("table",{className:"tbl"},
-          h("thead",null,h("tr",null,["Funcionário","Cargo","Vínculo","Situação","Turno"].map(function(t,i){return h("th",{key:i},t);}))),
-          h("tbody",null, rows.map(function(f,i){return h("tr",{key:i},
-            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(f[0],i),h("b",null,f[0]))),
-            h("td",null,f[1]),
-            h("td",null,h("span",{className:"badge "+(f[2]==="CLT"?"b-clt":"b-pj")},f[2])),
-            h("td",null,h("span",{className:"badge "+(f[3]==="Ativo"?"b-ok":"b-fe")},f[3])),
-            h("td",null,f[4]));}))
+          h("thead",null,h("tr",null,["Funcionário","Cargo","Setor","Vínculo","Situação",""].map(function(t,i){return h("th",{key:i},t);}))),
+          h("tbody",null, filtrados.length? filtrados.map(function(f,i){return h("tr",{key:f.id||i},
+            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(f.full_name,i),h("b",null,f.full_name))),
+            h("td",null,f.role_title||"—"),
+            h("td",null,f.dept||"—"),
+            h("td",null,h("span",{className:"badge "+((f.contract_type||"clt")==="clt"?"b-clt":"b-pj")},(f.contract_type||"clt").toUpperCase())),
+            h("td",null,h("span",{className:"badge "+(f.status==="ativo"?"b-ok":"b-fe")},cap(f.status))),
+            h("td",{style:{textAlign:"right"}}, h("button",{className:"rowbtn",onClick:function(){setForm(f);}},"Editar")));})
+            : [h("tr",{key:"v"},h("td",{colSpan:6,style:{color:"var(--muted)",textAlign:"center",padding:"26px"}},
+                live?"Nenhum resultado para a busca.":"Clique em “Novo” para cadastrar o primeiro funcionário."))])
         )
-      )
+      ),
+      h("div",{className:"hint"},"Depois de cadastrar, vincule o login do funcionário em Usuários — sem isso ele não enxerga a própria escala no Portal."),
+      form? h(EmpForm,{emp:form,units:(st&&st.units)||[],unitAtual:props.unit,onClose:function(){setForm(null);},onSaved:recarregar}) : null
     );
   }
   function Escalas(props){
@@ -631,8 +727,41 @@ window.FLOWSHIFT_CONFIG = {
     var st=props.store, live=st&&st.banco&&st.banco.length;
     var rows = live ? st.banco : DATA.banco;
     var total = live ? st.bancoTotal : 212;
+    var now=new Date(), curM=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+    var mm=useState(curM),mes=mm[0],setMes=mm[1];
+    var bb=useState(false),apu=bb[0],setApu=bb[1];
+    var pv=useState(null),prev=pv[0],setPrev=pv[1];
+    function apurar(commit){
+      if(DEMO||!sb){ toast("Requer modo produção"); return; }
+      setApu(true); if(!commit) setPrev(null);
+      sb.functions.invoke("flowshift-apurar-banco",{body:{month:mes,commit:commit===true}}).then(function(r){
+        setApu(false); var d=(r&&r.data)||{};
+        if(!d.ok){ toast("Erro: "+(d.error||"apuração")); return; }
+        if(commit){ toast("Banco apurado · "+d.gravados+" lançamento(s)"); setPrev(null); if(props.reload) props.reload(); }
+        else { setPrev(d); if(!(d.linhas||[]).length) toast("Nenhum dia com entrada e saída nesse mês"); }
+      }).catch(function(){ setApu(false); toast("Falha ao apurar"); });
+    }
+    var inp={background:"var(--chip)",border:"1px solid var(--line)",borderRadius:"10px",padding:"9px 11px",color:"var(--text)",fontFamily:"var(--font)",fontSize:"13px",outline:"none"};
     return h("div",null,
-      h("div",{className:"top"}, h("div",null,h("h1",null,"Banco de Horas"),h("div",{className:"sub"},"Fechamento em 31 jul · saldo da unidade "+(total>=0?"+":"")+total+"h"+(live?" · ● ao vivo":"")))),
+      h("div",{className:"top"}, h("div",null,h("h1",null,"Banco de Horas"),h("div",{className:"sub"},"Saldo da unidade "+(total>=0?"+":"")+total+"h"+(live?" · ● ao vivo":"")))),
+      h("div",{className:"panel glass",style:{display:"flex",flexWrap:"wrap",gap:"12px",alignItems:"flex-end"}},
+        h("div",null,h("div",{style:{fontSize:"11px",color:"var(--muted)",marginBottom:"4px"}},"Competência"),
+          h("input",{type:"month",style:inp,value:mes,onChange:function(e){setMes(e.target.value);setPrev(null);}})),
+        h("button",{className:"tbtn ghost",onClick:function(){apurar(false);}}, Icon("scale")," Apurar (prévia)"),
+        prev? h("button",{className:"tbtn",onClick:function(){apurar(true);}}, Icon("check")," Gravar no banco"):null,
+        h("div",{style:{fontSize:"11.5px",color:"var(--muted)",flexBasis:"100%",lineHeight:1.5}},
+          "A apuração calcula realizado − previsto por dia, aplica as correções aprovadas e grava um lançamento por funcionário. Regravar o mesmo mês substitui a apuração anterior.")),
+      apu? h("div",{className:"panel glass",style:{textAlign:"center",padding:"32px",color:"var(--muted)"}},"Apurando…") : null,
+      (prev&&!apu&&(prev.linhas||[]).length)? h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
+        h("div",{className:"ph",style:{padding:"10px 12px 4px"}}, h("h3",null,"Prévia — "+prev.motivo), h("span",{className:"tag live"},"Total "+(prev.total>=0?"+":"")+prev.total+"h")),
+        h("table",{className:"tbl"},
+          h("thead",null,h("tr",null,["Funcionário","Dias apurados","Marcações incompletas","Saldo do mês"].map(function(t,i){return h("th",{key:i},t);}))),
+          h("tbody",null, prev.linhas.map(function(l,i){return h("tr",{key:i},
+            h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(l.nome,i),h("b",null,l.nome))),
+            h("td",null,String(l.dias)),
+            h("td",{style:{color:l.incompletos?"var(--warn)":"var(--muted)"}}, l.incompletos?String(l.incompletos):"—"),
+            h("td",{style:{fontWeight:800,color:l.delta<0?"var(--bad)":"var(--good)"}},(l.delta>=0?"+":"")+l.delta+"h"));}))
+        )) : null,
       h("div",{className:"panel glass"},
         h("div",{className:"ph"},h("h3",null,"Saldo por funcionário")),
         h("table",{className:"tbl"}, h("thead",null,h("tr",null,[h("th",{key:0},"Funcionário"),h("th",{key:1},"Saldo"),h("th",{key:2},"Barra")])),
@@ -728,11 +857,15 @@ window.FLOWSHIFT_CONFIG = {
       if(!emps){ toast("Sem funcionários carregados"); return; }
       setBusy(true); setRes(null);
       var rg=monthRange(month), s=rg[0]+"T00:00:00-03:00", e=rg[1]+"T00:00:00-03:00";
-      var qe=sb.from("time_entries").select("employee_id,kind,ts").gte("ts",s).lt("ts",e);
+      var qe=sb.from("time_entries").select("id,employee_id,kind,ts").gte("ts",s).lt("ts",e);
       var qa=sb.from("assignments").select("employee_id,work_date,shift,hours").gte("work_date",rg[0]).lt("work_date",rg[1]);
+      var qc=sb.from("time_corrections").select("origin_entry,proposed,status").eq("status","approved");
       if(empId!=="all"){ qe=qe.eq("employee_id",empId); qa=qa.eq("employee_id",empId); }
-      Promise.all([qe,qa]).then(function(x){ setBusy(false);
-        var comp=repCompute((x[0]&&x[0].data)||[], (x[1]&&x[1].data)||[]);
+      Promise.all([qe,qa,qc]).then(function(x){ setBusy(false);
+        // correções aprovadas sobrepõem o horário original (o original permanece intacto na base — AFD)
+        var aj={}; (((x[2]&&x[2].data)||[])).forEach(function(c){ if(c.proposed&&c.proposed.ts) aj[c.origin_entry]=c.proposed.ts; });
+        var ents=(((x[0]&&x[0].data)||[])).map(function(e){ return aj[e.id]? Object.assign({},e,{ts:aj[e.id],corrigido:true}) : e; });
+        var comp=repCompute(ents, (x[1]&&x[1].data)||[]);
         var uCity=((store&&store.units)||[]).filter(function(u){return u.id===props.unit;})[0]; uCity=uCity&&uCity.city;
         var hol={}; ((store&&store.holidays)||[]).forEach(function(hd){ if(hd.optional) return; if(hd.layer==="municipal"){ if(uCity && String(hd.region)===String(uCity)) hol[hd.day]=1; } else { hol[hd.day]=1; } });
         var pool=(empId==="all")?emps:emps.filter(function(em){return em.id===empId;});
@@ -802,16 +935,24 @@ window.FLOWSHIFT_CONFIG = {
     var em=useState(""),nemail=em[0],setNemail=em[1];
     var pw=useState(""),npass=pw[0],setNpass=pw[1];
     var rl=useState("admin"),nrole=rl[0],setNrole=rl[1];
+    var ef=useState([]),freeEmps=ef[0],setFreeEmps=ef[1];
+    var ne=useState(""),nemp=ne[0],setNemp=ne[1];
     function load(){
       if(DEMO||!sb){ setLoad(false); setList([{name:"Isaac Nogueira",email:"isaac@flowshift.local",role:"master"},{name:"Santiago",email:"santiago@flowshift.local",role:"admin"}]); return; }
       setLoad(true);
       sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"list"}}).then(function(r){ setLoad(false); var d=(r&&r.data)||{}; if(d.ok) setList(d.users||[]); else toast(d.error||"Sem permissão"); });
+      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"employees_livres"}}).then(function(r){ var d=(r&&r.data)||{}; if(d.ok) setFreeEmps(d.employees||[]); });
     }
     useEffect(load,[]);
     function criar(){
       if(!nemail||!npass){ toast("Preencha e-mail e senha"); return; }
       if(DEMO||!sb){ toast("Requer modo produção (login do master)"); return; }
-      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"create",name:nname,email:nemail,password:npass,role:nrole}}).then(function(r){ var d=(r&&r.data)||{}; if(d.ok){ toast("Usuário criado"); setNname("");setNemail("");setNpass(""); load(); } else toast(d.error||"Erro"); });
+      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"create",name:nname,email:nemail,password:npass,role:nrole,employee_id:nemp||null}}).then(function(r){ var d=(r&&r.data)||{}; if(d.ok){ toast("Usuário criado"+(nemp?" e vinculado":"")); setNname("");setNemail("");setNpass("");setNemp(""); load(); } else toast(d.error||"Erro"); });
+    }
+    function vincular(user_id,employee_id){
+      if(DEMO||!sb){ toast("Requer modo produção"); return; }
+      sb.functions.invoke("flowshift-admin-usuarios",{body:{action:"link",user_id:user_id,employee_id:employee_id||null}}).then(function(r){
+        var d=(r&&r.data)||{}; if(d.ok){ toast(employee_id?"Login vinculado":"Vínculo removido"); load(); } else toast(d.error||"Erro"); });
     }
     var inp={background:"var(--chip)",border:"1px solid var(--line)",borderRadius:"10px",padding:"10px 12px",color:"var(--text)",fontFamily:"var(--font)",fontSize:"13px",outline:"none",width:"100%"};
     return h("div",null,
@@ -825,16 +966,26 @@ window.FLOWSHIFT_CONFIG = {
             h("input",{style:inp,type:"password",placeholder:"Senha",value:npass,onChange:function(e){setNpass(e.target.value);}}),
             h("select",{style:inp,value:nrole,onChange:function(e){setNrole(e.target.value);}},
               ["admin","supervisor","coordinator","leader","employee"].map(function(r){return h("option",{key:r,value:r},r);})),
-            h("button",{className:"tbtn",style:{justifyContent:"center"},onClick:criar}, Icon("users")," Criar usuário")
+            h("select",{style:inp,value:nemp,onChange:function(e){setNemp(e.target.value);}},
+              [h("option",{key:"",value:""},"— vincular a um funcionário (opcional) —")].concat(
+                (freeEmps||[]).filter(function(e){return !e.vinculado;}).map(function(e){return h("option",{key:e.id,value:e.id},e.full_name+(e.role_title?(" · "+e.role_title):""));}))),
+            h("button",{className:"tbtn",style:{justifyContent:"center"},onClick:criar}, Icon("users")," Criar usuário"),
+            h("div",{style:{fontSize:"11.5px",color:"var(--muted)",lineHeight:1.5,marginTop:"2px"}},"Logins de funcionário só enxergam a própria escala e o ponto se estiverem vinculados a um cadastro.")
           )
         ),
         h("div",{className:"panel glass",style:{padding:"4px 4px 8px"}},
           h("table",{className:"tbl"},
-            h("thead",null,h("tr",null,["Usuário","E-mail","Papel"].map(function(t,i){return h("th",{key:i},t);}))),
-            h("tbody",null, loading? [h("tr",{key:0},h("td",{colSpan:3,style:{color:"var(--muted)"}},"Carregando…"))] : list.map(function(u,i){return h("tr",{key:i},
+            h("thead",null,h("tr",null,["Usuário","E-mail","Papel","Funcionário vinculado"].map(function(t,i){return h("th",{key:i},t);}))),
+            h("tbody",null, loading? [h("tr",{key:0},h("td",{colSpan:4,style:{color:"var(--muted)"}},"Carregando…"))] : list.map(function(u,i){return h("tr",{key:i},
               h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:"9px"}},Av(u.name||u.email,i),h("b",null,u.name||u.email))),
               h("td",null,u.email),
-              h("td",null,h("span",{className:"badge "+(u.role==="master"?"b-pj":"b-clt")},u.role)));}))
+              h("td",null,h("span",{className:"badge "+(u.role==="master"?"b-pj":"b-clt")},u.role)),
+              h("td",null, (DEMO||!sb)? (u.employee_nome||"—")
+                : h("select",{style:Object.assign({},inp,{padding:"6px 8px",fontSize:"12px"}),value:u.employee_id||"",onChange:function(e){vincular(u.user_id,e.target.value);}},
+                    [h("option",{key:"",value:""},"— não vinculado —")].concat(
+                      (freeEmps||[]).filter(function(e){return !e.vinculado || e.id===u.employee_id;})
+                        .map(function(e){return h("option",{key:e.id,value:e.id},e.full_name);}))))
+              );}))
           )
         )
       ),
@@ -879,7 +1030,7 @@ window.FLOWSHIFT_CONFIG = {
       ),
       h("main",{className:"main"},
         view!=="dash" ? h("button",{className:"backbtn glass",onClick:goBack}, Icon("back"), h("span",null,"Voltar")) : null,
-        h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store})),
+        h(View,{unit:unit,unitName:unitName(),go:nav,setTheme:props.setTheme,store:props.store,reload:props.reload})),
       (function(){
         var extras=((DEMO||(props.store&&props.store.isMaster))?[["usuarios","Usuários","users"]]:[]).concat(NAV2);
         var todos=NAV.concat(extras);
@@ -966,6 +1117,8 @@ window.FLOWSHIFT_CONFIG = {
     var us=useState(null),user=us[0],setUser=us[1];
     var th=useState("dark"),theme=th[0],setThemeS=th[1];
     var stt=useState(null),store=stt[0],setStore=stt[1];
+    var rf=useState(0),refresh=rf[0],setRefresh=rf[1];
+    function reload(){ setRefresh(refresh+1); }
     function setTheme(t){setThemeS(t);document.documentElement.setAttribute("data-theme",t);}
     useEffect(function(){
       if(user && !DEMO && sb){
@@ -1010,7 +1163,7 @@ window.FLOWSHIFT_CONFIG = {
           setStore({ units:units, employees:emps, ponto:ponto, banco:banco, bancoTotal:bancoTotal, kpis:kpis, live:live, shifts:shifts, pend:pend, holidays:holidays, isMaster:((res[4]&&res[4].data&&res[4].data.length>0)||false) });
         }).catch(function(){ setStore(null); });
       }
-    },[user]);
+    },[user,refresh]);
     useEffect(function(){
       var rx=0,ry=0,tx=0,ty=0,raf;
       function mm(e){tx=(e.clientX/window.innerWidth-.5)*2;ty=(e.clientY/window.innerHeight-.5)*2;var r=document.documentElement.style;r.setProperty("--cx",e.clientX+"px");r.setProperty("--cy",e.clientY+"px");}
@@ -1035,7 +1188,7 @@ window.FLOWSHIFT_CONFIG = {
     },[user]);
     function logout(){ try{ if(sb) sb.auth.signOut(); sessionStorage.removeItem("fs_force_desktop"); }catch(e){} setStore(null); setUser(null); }
     if(!user) return h(Login,{onLogin:setUser});
-    return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,onLogout:logout});
+    return h(Shell,{user:user,setUser:setUser,theme:theme,setTheme:setTheme,store:store,reload:reload,onLogout:logout});
   }
 
   var root=document.getElementById("root");
