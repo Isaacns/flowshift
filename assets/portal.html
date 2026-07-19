@@ -163,7 +163,8 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
           sb.from("employees").select("id,full_name"),
           sb.from("availability").select("employee_id,accepts_swap"),
           sb.from("notifications").select("id,title,body,read,created_at").order("created_at",{ascending:false}).limit(30),
-          sb.from("time_corrections").select("id,origin_entry,status,proposed").order("created_at",{ascending:false}).limit(50)
+          sb.from("time_corrections").select("id,origin_entry,status,proposed").order("created_at",{ascending:false}).limit(50),
+          sb.from("tenants").select("legal_name").limit(1).maybeSingle()
         ]).then(function(r){
           var names={}; (r[6].data||[]).forEach(function(e){names[e.id]=e.full_name;});
           var avm={}; (r[7].data||[]).forEach(function(a){avm[a.employee_id]=a.accepts_swap!==false;});
@@ -172,7 +173,8 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
           setData({ emp:emp, me:r[0].data||{full_name:"Funcionário"}, assigns:r[1].data||[], ponto:r[2].data||[],
             swaps:r[3].data||[], saldo:Math.round((r[4].data||[]).reduce(function(a,x){return a+Number(x.delta);},0)),
             unit:unit&&unit.unit_id, names:names, colleagues:colleagues, notifs:(r[8]&&r[8].data)||[],
-            corr:(r[9]&&r[9].data)||[] });
+            corr:(r[9]&&r[9].data)||[],
+            empresa:((r[10]&&r[10].data&&r[10].data.legal_name)||"") });
         });
       });
     }
@@ -235,7 +237,7 @@ h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fa
         // INÍCIO
         h("div",{className:"view"+(tab==="home"?" on":"")},
           h("div",{className:"hello"},"Olá, ",h("span",null,(me.full_name||"").split(" ")[0])," 👋"),
-          h("div",{className:"subhello"}, (me.role_title||"Funcionário")),
+          h("div",{className:"subhello"}, (me.role_title||"Funcionário")+(data.empresa?(" · "+data.empresa):"")),
           prox? h("div",{className:"card next"}, h("div",{className:"lbl"},"Seu próximo turno"),
             h("div",{className:"big"}, (SL[prox.shift]?SL[prox.shift][0]:prox.shift)), h("div",{className:"meta"}, prox.work_date+" · "+(SL[prox.shift]?SL[prox.shift][1]:""))) : h("div",{className:"card glass"},h("div",{className:"empty"},"Sem turnos futuros na sua escala.")),
           h("div",{className:"stat3"},
