@@ -1,6 +1,6 @@
 /* FlowShift by Vizio — service worker resiliente e versionado (padrão INPERSON).
-   NÃO editar VER à mão: o build.js injeta mrrynye3. */
-var VER="mrrynye3";
+   NÃO editar VER à mão: o build.js injeta mrt18gg3. */
+var VER="mrt18gg3";
 var C="flowshift-"+VER;
 
 self.addEventListener("install", function(e){ self.skipWaiting(); });
@@ -61,5 +61,8 @@ self.addEventListener("fetch", function(e){
   var url;
   try{ url=new URL(e.request.url); }catch(x){ return; }
   if(url.origin!==self.location.origin) return; /* deixa Supabase e CDNs passarem */
+  /* Checagem de versão não entra no cache: cada uma usa ?_v=<timestamp> único e o
+     cache criaria uma entrada nova a cada 10 min, para sempre. */
+  if(url.searchParams.has("_v")) return;
   e.respondWith(netFirst(e.request));
 });
