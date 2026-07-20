@@ -441,6 +441,22 @@ body::after{content:"";position:fixed;left:var(--cx);top:var(--cy);width:520px;h
   <div class="grain"></div>
   <div id="root" class="boot">Carregando FlowShift…</div>
 
+  <script>
+  /* VERSÃO DO APP — bumpar a CADA deploy. É por este número que o push compara (§14.2).
+     window.APP_VERSION, NUNCA const: scripts clássicos dividem o mesmo escopo e uma
+     segunda declaração derrubaria o arquivo inteiro (bug real do Vizio Motors). */
+  window.APP_VERSION = '1.1.0';
+
+  /* Guarda de HTTPS com exceção de loopback (§3.4 do rollout): sem a exceção,
+     não dá para testar em localhost — o redirect entra em laço. */
+  (function(){
+    var local=/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(location.hostname);
+    if(location.protocol==='http:' && !local){
+      location.replace('https://'+location.host+location.pathname+location.search+location.hash);
+    }
+  })();
+  </script>
+
   <!-- Padrão INPERSON/VIZIO: React + supabase-js via CDN (UMD), sem build, sem JSX -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
@@ -1650,30 +1666,58 @@ window.FLOWSHIFT_CONFIG = {
   /* Atualização AUTOMÁTICA (padrão INPERSON/VIZIO): o app se atualiza sozinho.
      Só espera o toque do usuário quando recarregar destruiria trabalho em
      andamento (formulário sendo digitado, modal aberto). */
+  /* Estado do push compartilhado pelas DUAS rotas (§14.2 / §5 do rollout):
+     rota 1 = service worker · rota 2 = APP_VERSION por rede.
+     A rota 2 existe porque um deploy que mexe SÓ no index.html não muda o sw.js:
+     o 'updatefound' não dispara e ninguém seria avisado. */
+  var _reg=null, _avisou=false, _checando=false;
+  function ehSeguroRecarregar(){
+    if(document.querySelector(".fs-sheet-bg,.overlay,.modal,.sheet,.fs-modal-bg")) return false;
+    var a=document.activeElement;
+    if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+    return true;
+  }
+  function aplicarAgora(){
+    try{ sessionStorage.setItem("fs_atualizou","1"); }catch(x){}
+    try{ if(_reg&&_reg.waiting) _reg.waiting.postMessage({type:"PULAR_ESPERA"}); }catch(x){}
+    setTimeout(function(){ location.replace(location.pathname+"?v="+Date.now()+location.hash); },1200);
+  }
+  function avisarNovaVersao(){
+    if(_avisou) return; _avisou=true;
+    var b=document.createElement("button");
+    b.className="fs-update"; b.type="button"; b.id="vzUpdate";
+    b.innerHTML='✨ Uma versão novinha do sistema está pronta — <b>Atualizar agora</b>'
+      +'<span>Não apliquei sozinho para não perder o que você está preenchendo</span>';
+    b.onclick=function(){ b.textContent="Atualizando…"; b.disabled=true; aplicarAgora(); };
+    document.body.appendChild(b);
+    requestAnimationFrame(function(){ b.classList.add("on"); });
+  }
+  function novaVersaoPronta(){ if(ehSeguroRecarregar()) aplicarAgora(); else avisarNovaVersao(); }
+
+  /* ROTA 2 — APP_VERSION por rede. SEM guard de document.hidden de propósito:
+     aba em segundo plano é exatamente o caso que este push existe para pegar. */
+  function checarVersao(){
+    if(_checando||_avisou) return; _checando=true;
+    var base=location.href.replace(/[#?].*$/,"");
+    fetch(base+"?_v="+Date.now(),{cache:"no-store"})
+      .then(function(r){ return r.ok?r.text():null; })
+      .then(function(t){
+        if(!t) return;
+        var m=t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+        if(m&&m[1]&&m[1]!==window.APP_VERSION) novaVersaoPronta();
+      })
+      .catch(function(){})
+      .then(function(){ _checando=false; });
+  }
+  setTimeout(checarVersao,8000);
+  setInterval(checarVersao,10*60*1000);
+  document.addEventListener("visibilitychange",function(){
+    if(!document.hidden){ checarVersao(); if(_reg){ try{ _reg.update(); }catch(x){} } }
+  });
+  window.addEventListener("online",function(){ checarVersao(); if(_reg){ try{ _reg.update(); }catch(x){} } });
+
+  /* ROTA 1 — service worker */
   if("serviceWorker" in navigator){ window.addEventListener("load",function(){
-    var _reg=null, _avisou=false;
-    function ehSeguroRecarregar(){
-      if(document.querySelector(".fs-sheet-bg,.overlay,.modal,.sheet")) return false;
-      var a=document.activeElement;
-      if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
-      return true;
-    }
-    function aplicarAgora(){
-      try{ sessionStorage.setItem("fs_atualizou","1"); }catch(x){}
-      try{ if(_reg&&_reg.waiting) _reg.waiting.postMessage({type:"PULAR_ESPERA"}); }catch(x){}
-      setTimeout(function(){ location.reload(); },1500);
-    }
-    function avisarNovaVersao(){
-      if(_avisou) return; _avisou=true;
-      var b=document.createElement("button");
-      b.className="fs-update";
-      b.innerHTML='✨ Nova versão pronta — <b>toque para aplicar</b>'
-        +'<span>Não apliquei agora para não perder o que você está preenchendo</span>';
-      b.onclick=function(){ b.textContent="Atualizando…"; b.disabled=true; aplicarAgora(); };
-      document.body.appendChild(b);
-      requestAnimationFrame(function(){ b.classList.add("on"); });
-    }
-    function novaVersaoPronta(){ if(ehSeguroRecarregar()) aplicarAgora(); else avisarNovaVersao(); }
     var _hadCtrl=!!navigator.serviceWorker.controller, _refreshing=false;
     navigator.serviceWorker.addEventListener("controllerchange",function(){ if(_refreshing)return; _refreshing=true; if(_hadCtrl) location.reload(); });
     navigator.serviceWorker.register("sw.js").then(function(reg){
@@ -1686,10 +1730,7 @@ window.FLOWSHIFT_CONFIG = {
         });
       });
       try{ reg.update(); }catch(x){}
-      document.addEventListener("visibilitychange",function(){
-        if(document.visibilityState==="visible" && _reg){ try{ _reg.update(); }catch(x){} }
-      });
-      window.addEventListener("online",function(){ if(_reg){ try{ _reg.update(); }catch(x){} } });
+      /* visibilitychange e online já estão registrados acima, servindo as duas rotas */
     }).catch(function(){});
     try{ if(sessionStorage.getItem("fs_atualizou")){ sessionStorage.removeItem("fs_atualizou");
       setTimeout(function(){ toast("App atualizado ✓"); },600); } }catch(x){}
